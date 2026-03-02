@@ -39,6 +39,8 @@ export class Recorder {
       };
     }
 
+    opts.recordHar = { path: join(this.runDir, "traces", "trace.har") };
+
     return opts;
   }
 
