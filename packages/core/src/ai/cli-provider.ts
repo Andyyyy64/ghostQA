@@ -6,6 +6,11 @@ import { nanoid } from "nanoid";
 import consola from "consola";
 import type { AiProvider, ChatMessage, ChatResponse } from "./provider";
 
+/** Rough token estimate: ~4 chars per token for English/code */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 /**
  * CLI LLM tool provider — delegates AI calls to installed CLI tools.
  *
@@ -29,7 +34,11 @@ export class CliProvider implements AiProvider {
   ): Promise<ChatResponse> {
     const prompt = this.buildPrompt(system, messages);
     const text = await this.invoke(prompt);
-    return { text, inputTokens: 0, outputTokens: 0 };
+    return {
+      text,
+      inputTokens: estimateTokens(prompt),
+      outputTokens: estimateTokens(text),
+    };
   }
 
   async chatWithImage(
@@ -46,7 +55,13 @@ export class CliProvider implements AiProvider {
     const prompt = this.buildPrompt(system, messages, imgPath);
     try {
       const text = await this.invoke(prompt);
-      return { text, inputTokens: 0, outputTokens: 0 };
+      // Estimate ~85 tokens per image (Anthropic vision rough average)
+      const imageTokens = 85;
+      return {
+        text,
+        inputTokens: estimateTokens(prompt) + imageTokens,
+        outputTokens: estimateTokens(text),
+      };
     } finally {
       await rm(imgPath, { force: true }).catch(() => {});
     }

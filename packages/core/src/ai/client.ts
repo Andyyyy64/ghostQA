@@ -9,7 +9,8 @@ export class AiClient {
   public costTracker: CostTracker;
 
   constructor(config: AiConfig) {
-    this.costTracker = new CostTracker(config.model, config.max_budget_usd);
+    const modelKey = config.provider === "cli" ? "cli" : config.model;
+    this.costTracker = new CostTracker(modelKey, config.max_budget_usd);
     this.provider = createProvider(config);
   }
 
