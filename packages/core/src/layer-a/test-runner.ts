@@ -1,4 +1,4 @@
-import { writeFile, mkdir, rm, symlink, stat, cp } from "node:fs/promises";
+import { writeFile, mkdir, rm, symlink, stat, cp, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { execa } from "execa";
@@ -74,45 +74,26 @@ export class TestRunner {
         await writeFile(testFile, test.code, "utf-8");
         consola.debug(`Written test: ${testFile}`);
 
-        const startTime = Date.now();
-        try {
-          // Use ghostqa's own Playwright CLI to avoid version conflicts with npx
-          const cmd = pw ? "node" : "npx";
-          const args = pw
-            ? [pw.cli, "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)]
-            : ["playwright", "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)];
+        const result = await this.runSingleTest(pw, testFile, test.name, tmpDir);
 
-          await execa(cmd, args, {
-            timeout: this.config.timeout_per_test + 5000,
-            env: {
-              ...process.env,
-              PLAYWRIGHT_JSON_OUTPUT_NAME: "results.json",
-            },
-          });
+        // Retry once on failure — flaky tests or timing issues
+        if (!result.passed) {
+          consola.debug(`Retrying failed test: ${test.name}`);
+          const retry = await this.runSingleTest(pw, testFile, test.name, tmpDir);
+          if (retry.passed) {
+            results.push(retry);
+            continue;
+          }
+        }
 
-          results.push({
-            name: test.name,
-            passed: true,
-            duration: Date.now() - startTime,
-          });
-        } catch (err) {
-          const duration = Date.now() - startTime;
-          const errorMsg =
-            err instanceof Error ? err.message : String(err);
-
-          results.push({
-            name: test.name,
-            passed: false,
-            error: errorMsg,
-            duration,
-          });
-
+        results.push(result);
+        if (!result.passed) {
           discoveries.push({
             id: `la-${nanoid(8)}`,
             source: "layer-a",
             severity: "high",
             title: `Test failed: ${test.name}`,
-            description: errorMsg.slice(0, 500),
+            description: result.error?.slice(0, 500) ?? "Unknown error",
             url: "",
             timestamp: Date.now(),
           });
@@ -144,5 +125,70 @@ export class TestRunner {
     consola.info(`Layer A: ${passed} passed, ${failed} failed`);
 
     return { tests: results, discoveries };
+  }
+
+  private async runSingleTest(
+    pw: ReturnType<typeof resolvePlaywright>,
+    testFile: string,
+    testName: string,
+    tmpDir: string
+  ): Promise<TestResult> {
+    const startTime = Date.now();
+    const jsonOutputPath = join(tmpDir, `results-${nanoid(4)}.json`);
+
+    try {
+      const cmd = pw ? "node" : "npx";
+      const args = pw
+        ? [pw.cli, "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)]
+        : ["playwright", "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)];
+
+      await execa(cmd, args, {
+        timeout: this.config.timeout_per_test + 5000,
+        env: {
+          ...process.env,
+          PLAYWRIGHT_JSON_OUTPUT_NAME: jsonOutputPath,
+        },
+      });
+
+      return { name: testName, passed: true, duration: Date.now() - startTime };
+    } catch (err) {
+      const duration = Date.now() - startTime;
+
+      // Try to extract structured error from Playwright JSON report
+      const detailedError = await this.extractPlaywrightError(jsonOutputPath);
+      const rawError = err instanceof Error ? err.message : String(err);
+      const errorMsg = detailedError ?? rawError;
+
+      return { name: testName, passed: false, error: errorMsg, duration };
+    }
+  }
+
+  /** Extract the actual assertion/test error from Playwright's JSON report */
+  private async extractPlaywrightError(jsonPath: string): Promise<string | null> {
+    try {
+      const raw = await readFile(jsonPath, "utf-8");
+      const report = JSON.parse(raw);
+
+      // Playwright JSON report structure: { suites: [{ specs: [{ tests: [{ results: [{ errors }] }] }] }] }
+      const errors: string[] = [];
+      for (const suite of report.suites ?? []) {
+        for (const spec of suite.specs ?? []) {
+          for (const test of spec.tests ?? []) {
+            for (const result of test.results ?? []) {
+              if (result.errors?.length > 0) {
+                for (const e of result.errors) {
+                  const msg = e.message ?? e.stack ?? "";
+                  if (msg) errors.push(msg.slice(0, 300));
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return errors.length > 0 ? errors.join("\n---\n") : null;
+    } catch {
+      return null;
+    }
   }
 }
