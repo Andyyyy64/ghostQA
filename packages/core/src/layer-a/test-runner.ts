@@ -1,11 +1,27 @@
-import { writeFile, mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { writeFile, mkdir, rm, symlink, stat } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import { createRequire } from "node:module";
 import { execa } from "execa";
 import { nanoid } from "nanoid";
 import consola from "consola";
 import type { GeneratedTest } from "./test-generator";
 import type { Discovery } from "../types/discovery";
 import type { LayerAConfig } from "../types/config";
+
+// Resolve paths from ghostqa's own @playwright/test dependency
+function resolvePlaywright(): { cli: string; nodeModules: string } | null {
+  try {
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve("@playwright/test/package.json");
+    const pkgDir = dirname(pkgPath);
+    const cli = join(pkgDir, "cli.js");
+    // node_modules directory (parent of @playwright/)
+    const nodeModules = join(pkgDir, "..", "..");
+    return { cli, nodeModules };
+  } catch {
+    return null;
+  }
+}
 
 export interface TestResult {
   name: string;
@@ -33,6 +49,22 @@ export class TestRunner {
     const tmpDir = join(this.outputDir, ".layer-a-tests");
     await mkdir(tmpDir, { recursive: true });
 
+    const pw = resolvePlaywright();
+
+    // Symlink node_modules into test dir so imports resolve
+    if (pw) {
+      const symlinkPath = join(tmpDir, "node_modules");
+      try {
+        await stat(symlinkPath);
+      } catch {
+        await symlink(pw.nodeModules, symlinkPath, "junction").catch(() =>
+          symlink(pw.nodeModules, symlinkPath, "dir").catch(() => {
+            consola.debug(`Failed to symlink node_modules`);
+          })
+        );
+      }
+    }
+
     const results: TestResult[] = [];
     const discoveries: Discovery[] = [];
 
@@ -44,21 +76,19 @@ export class TestRunner {
 
         const startTime = Date.now();
         try {
-          await execa(
-            "npx",
-            [
-              "playwright",
-              "test",
-              testFile,
-              "--reporter=json",
-              "--timeout",
-              String(this.config.timeout_per_test),
-            ],
-            {
-              timeout: this.config.timeout_per_test + 5000,
-              env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: "results.json" },
-            }
-          );
+          // Use ghostqa's own Playwright CLI to avoid version conflicts with npx
+          const cmd = pw ? "node" : "npx";
+          const args = pw
+            ? [pw.cli, "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)]
+            : ["playwright", "test", testFile, "--reporter=json", "--timeout", String(this.config.timeout_per_test)];
+
+          await execa(cmd, args, {
+            timeout: this.config.timeout_per_test + 5000,
+            env: {
+              ...process.env,
+              PLAYWRIGHT_JSON_OUTPUT_NAME: "results.json",
+            },
+          });
 
           results.push({
             name: test.name,
