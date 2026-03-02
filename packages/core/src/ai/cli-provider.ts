@@ -6,21 +6,34 @@ import { nanoid } from "nanoid";
 import consola from "consola";
 import type { AiProvider, ChatMessage, ChatResponse } from "./provider";
 
-/** Rough token estimate: ~4 chars per token for English/code */
+/** Rough token estimate fallback: ~4 chars per token */
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
+}
+
+interface ClaudeJsonOutput {
+  result: string;
+  total_cost_usd?: number;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
 }
 
 /**
  * CLI LLM tool provider — delegates AI calls to installed CLI tools.
  *
  * Supported tools:
- *   claude  — Claude Code CLI (stdin piped to `claude -p --output-format text`)
+ *   claude  — Claude Code CLI (uses --output-format json for usage tracking)
  *   codex   — OpenAI Codex CLI (stdin piped to `codex -q`)
  */
 export class CliProvider implements AiProvider {
   private command: string;
   private extraArgs: string[];
+  /** Cost from the most recent Claude CLI call (reset after each sync) */
+  public reportedCostUsd = 0;
 
   constructor(command: string, extraArgs: string[] = []) {
     this.command = command;
@@ -33,12 +46,7 @@ export class CliProvider implements AiProvider {
     _options?: { maxTokens?: number }
   ): Promise<ChatResponse> {
     const prompt = this.buildPrompt(system, messages);
-    const text = await this.invoke(prompt);
-    return {
-      text,
-      inputTokens: estimateTokens(prompt),
-      outputTokens: estimateTokens(text),
-    };
+    return this.invoke(prompt);
   }
 
   async chatWithImage(
@@ -48,20 +56,12 @@ export class CliProvider implements AiProvider {
     _mediaType?: "image/png" | "image/jpeg" | "image/webp",
     _options?: { maxTokens?: number }
   ): Promise<ChatResponse> {
-    // Save image to temp file so CLI tools can reference it
     const imgPath = join(tmpdir(), `ghostqa-${nanoid(6)}.png`);
     await writeFile(imgPath, Buffer.from(imageBase64, "base64"));
 
     const prompt = this.buildPrompt(system, messages, imgPath);
     try {
-      const text = await this.invoke(prompt);
-      // Estimate ~85 tokens per image (Anthropic vision rough average)
-      const imageTokens = 85;
-      return {
-        text,
-        inputTokens: estimateTokens(prompt) + imageTokens,
-        outputTokens: estimateTokens(text),
-      };
+      return await this.invoke(prompt);
     } finally {
       await rm(imgPath, { force: true }).catch(() => {});
     }
@@ -88,9 +88,10 @@ export class CliProvider implements AiProvider {
     return parts.join("\n\n");
   }
 
-  private async invoke(prompt: string): Promise<string> {
+  private async invoke(prompt: string): Promise<ChatResponse> {
     const cmd = this.resolveCommand();
     const args = this.buildArgs();
+    const isClaude = this.isClaude();
 
     consola.debug(`CLI AI: ${cmd} ${args.join(" ")} (${prompt.length} chars via stdin)`);
 
@@ -104,9 +105,57 @@ export class CliProvider implements AiProvider {
       consola.warn(`CLI tool stderr: ${result.stderr.slice(0, 300)}`);
     }
 
-    const output = result.stdout.trim();
-    consola.debug(`CLI AI response (${output.length} chars): ${output.slice(0, 200)}...`);
-    return output;
+    const raw = result.stdout.trim();
+
+    // Claude with --output-format json returns structured data with usage info
+    if (isClaude) {
+      return this.parseClaudeJson(raw, prompt);
+    }
+
+    // Other CLI tools: use text output + estimation
+    consola.debug(`CLI AI response (${raw.length} chars): ${raw.slice(0, 200)}...`);
+    return {
+      text: raw,
+      inputTokens: estimateTokens(prompt),
+      outputTokens: estimateTokens(raw),
+    };
+  }
+
+  private parseClaudeJson(raw: string, prompt: string): ChatResponse {
+    try {
+      const data = JSON.parse(raw) as ClaudeJsonOutput;
+      const text = data.result ?? "";
+      const usage = data.usage;
+
+      const inputTokens =
+        (usage?.input_tokens ?? 0) +
+        (usage?.cache_creation_input_tokens ?? 0) +
+        (usage?.cache_read_input_tokens ?? 0);
+      const outputTokens = usage?.output_tokens ?? 0;
+
+      if (data.total_cost_usd) {
+        this.reportedCostUsd = data.total_cost_usd;
+      }
+
+      consola.debug(
+        `Claude usage: ${inputTokens} in / ${outputTokens} out, cost: $${(data.total_cost_usd ?? 0).toFixed(4)}`
+      );
+
+      return { text, inputTokens, outputTokens };
+    } catch {
+      // JSON parse failed — claude might have returned plain text
+      consola.debug("Failed to parse Claude JSON output, falling back to text");
+      return {
+        text: raw,
+        inputTokens: estimateTokens(prompt),
+        outputTokens: estimateTokens(raw),
+      };
+    }
+  }
+
+  private isClaude(): boolean {
+    const cmd = this.command.split("/").pop() ?? this.command;
+    return cmd === "claude";
   }
 
   private resolveCommand(): string {
@@ -118,11 +167,10 @@ export class CliProvider implements AiProvider {
 
     switch (cmd) {
       case "claude":
-        // claude -p reads prompt from stdin, --output-format text returns plain text
-        return ["-p", "--output-format", "text", ...this.extraArgs];
+        // Use JSON output to get usage/cost data; extract result text ourselves
+        return ["-p", "--output-format", "json", ...this.extraArgs];
 
       case "codex":
-        // codex -q reads from stdin
         return ["-q", ...this.extraArgs];
 
       default:

@@ -9,8 +9,7 @@ export class AiClient {
   public costTracker: CostTracker;
 
   constructor(config: AiConfig) {
-    const modelKey = config.provider === "cli" ? "cli" : config.model;
-    this.costTracker = new CostTracker(modelKey, config.max_budget_usd);
+    this.costTracker = new CostTracker(config.model, config.max_budget_usd);
     this.provider = createProvider(config);
   }
 
@@ -22,6 +21,7 @@ export class AiClient {
     this.costTracker.checkBudget();
     const response = await this.provider.chat(system, messages, options);
     this.costTracker.track(response.inputTokens, response.outputTokens);
+    this.syncCliCost();
     return response.text;
   }
 
@@ -41,7 +41,16 @@ export class AiClient {
       options
     );
     this.costTracker.track(response.inputTokens, response.outputTokens);
+    this.syncCliCost();
     return response.text;
+  }
+
+  /** Sync reported cost from CLI provider (claude reports actual cost per call) */
+  private syncCliCost(): void {
+    if (this.provider instanceof CliProvider && this.provider.reportedCostUsd > 0) {
+      this.costTracker.addReportedCost(this.provider.reportedCostUsd);
+      this.provider.reportedCostUsd = 0; // reset after syncing
+    }
   }
 }
 
