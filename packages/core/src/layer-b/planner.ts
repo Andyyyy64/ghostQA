@@ -35,8 +35,12 @@ Respond with ONLY this JSON (no markdown, no code fences, no explanation):
   "done": false
 }
 
-Set "done": true when you've explored thoroughly enough.
-Set "discovery" to an object with "title", "description", "severity" when you find a bug.`;
+CRITICAL rules:
+- Set "done": true ONLY after you have tested ALL impact areas and reported ALL bugs you found.
+- EVERY bug you find MUST be reported via the "discovery" field. If you mention a bug in "reasoning" but don't set "discovery", it will be LOST.
+- Report ONE discovery per step. If you find multiple bugs, report them in separate steps.
+- Do NOT summarize or conclude in natural language. ALWAYS respond with the JSON object.
+- Set "discovery" to { "title": "short title", "description": "detailed description", "severity": "critical|high|medium|low|info" } when you find a bug.`;
 
 export interface PlanResult {
   reasoning: string;
@@ -92,7 +96,18 @@ ${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.descriptio
       this.history = this.history.slice(-16);
     }
 
-    return this.parseResponse(response);
+    const result = this.parseResponse(response);
+
+    // If parse failed, inject a reminder so the next request gets JSON
+    if (this.parseFailures > 0) {
+      this.history.push({
+        role: "user",
+        content:
+          "Your response was not valid JSON. You MUST respond with ONLY a JSON object, no markdown, no explanation. Continue exploring or set done:true if finished.",
+      });
+    }
+
+    return result;
   }
 
   private parseResponse(response: string): PlanResult {
