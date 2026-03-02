@@ -37,7 +37,10 @@
   </div>
 
   <ul id="todoList"></ul>
-  <p class="count" id="todoCount"></p>
+  <div style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+    <p class="count" id="todoCount"></p>
+    <button id="clearCompleted" style="margin-left: auto; padding: 0.25rem 0.75rem; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; color: #ef4444;">Clear Completed</button>
+  </div>
 
   <script>
     let todos = [];
@@ -62,11 +65,11 @@
         <li class="${t.done ? 'done' : ''}">
           <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})">
           <span>${t.text}</span>
-          <button class="delete-btn" onclick="remove(${t.id})">x</button>
+          <button class="delete-btn" onclick="remov(${t.id})">x</button>
         </li>
       `).join('');
 
-      const active = todos.filter(t => !t.done).length;
+      const active = todos.filter(t => !t.done);
       document.getElementById('todoCount').textContent = `${active} item${active !== 1 ? 's' : ''} left`;
     }
 
@@ -98,6 +101,12 @@
         e.target.classList.add('active');
         render();
       }
+    });
+
+    // Clear completed todos
+    document.getElementById('clearCompleted').addEventListener('click', () => {
+      todos = [];  // BUG: should be todos.filter(t => !t.done)
+      render();
     });
 
     loadTodos();

@@ -9,3 +9,8 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Playwright test artifacts
+test-results/
+results.json
+playwright-report/

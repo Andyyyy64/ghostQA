@@ -32,5 +32,5 @@ reporter:
   formats:
     - html
     - json
-  video: false
+  video: true
   screenshots: true
