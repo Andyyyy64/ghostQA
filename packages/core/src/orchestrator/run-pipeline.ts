@@ -44,7 +44,27 @@ export async function runPipeline(
 
   const reporter = new Reporter(outputDir);
   const startedAt = Date.now();
-  let environment;
+  let environment: { cleanup: () => Promise<void> } | undefined;
+
+  // Track resources for cleanup on SIGINT/SIGTERM
+  let activeBrowser: import("playwright").Browser | null = null;
+  let activeContext: import("playwright").BrowserContext | null = null;
+  let activeAppRunner: AppRunner | null = null;
+  let interrupted = false;
+
+  const cleanup = async () => {
+    if (interrupted) return;
+    interrupted = true;
+    consola.warn("Interrupted — cleaning up...");
+    try { if (activeContext) await activeContext.close(); } catch {}
+    try { if (activeBrowser) await activeBrowser.close(); } catch {}
+    try { if (activeAppRunner) await activeAppRunner.stop(); } catch {}
+    try { if (environment) await environment.cleanup(); } catch {}
+  };
+
+  const onSignal = () => { cleanup().then(() => process.exit(130)); };
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
 
   const result: RunResult = {
     run_id: runId,
@@ -82,6 +102,7 @@ export async function runPipeline(
     // 3. Build & start app
     onProgress?.("Building application...");
     const appRunner = new AppRunner(config.app);
+    activeAppRunner = appRunner;
     await appRunner.build(cwd);
 
     onProgress?.("Starting application...");
@@ -90,14 +111,14 @@ export async function runPipeline(
     try {
       // 4. Launch browser
       onProgress?.("Launching browser...");
-      const browser = await chromium.launch({
-        headless: true,
-      });
+      const browser = await chromium.launch({ headless: true });
+      activeBrowser = browser;
 
       const context = await browser.newContext({
         viewport: config.layer_b.viewport,
         ...recorder.contextOptions(),
       });
+      activeContext = context;
 
       const page = await context.newPage();
 
@@ -129,10 +150,16 @@ export async function runPipeline(
           result.discoveries.push(...layerBResult.discoveries);
         }
       } finally {
+        activeContext = null;
+        activeBrowser = null;
         await context.close();
         await browser.close();
+        if (config.reporter.video) {
+          consola.info("Video saved to run output directory");
+        }
       }
     } finally {
+      activeAppRunner = null;
       await appRunner.stop();
     }
   } catch (err) {
@@ -155,6 +182,10 @@ export async function runPipeline(
 
   await reporter.writeJson(result);
   const reportPath = await reporter.writeHtml(result);
+
+  // Remove signal handlers now that we're done
+  process.removeListener("SIGINT", onSignal);
+  process.removeListener("SIGTERM", onSignal);
 
   return {
     verdict: result.verdict,
