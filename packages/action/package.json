@@ -1,0 +1,6 @@
+{
+  "name": "@ghostqa/action",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action for ghostQA (v0.5 placeholder)"
+}
