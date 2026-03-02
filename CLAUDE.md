@@ -12,33 +12,28 @@
 
 - **`ghostqa run`** — フルパイプラインが1コマンドで完走する
 - **Diff 解析** — `git diff` → AI影響推定（4-6 impact areas 生成）
-- **Layer A（テスト生成）** — AIがPlaywrightテストコードを生成、`@playwright/test` を自前解決して実行
+- **Layer A（テスト生成＋実行）** — AIがPlaywrightテストコードを生成、`@playwright/test` を自前解決して実行。失敗テストは1回リトライ。Playwright JSON レポートから詳細エラーを抽出。生成テストは `generated-tests/` に保存
 - **Layer B（AI探索）** — AIがブラウザを実操作し、バグを発見・evidence付きで報告
   - AXツリー＋スクショをAIに渡す observe → plan → act ループ
-  - 意図的に仕込んだバグ3つ中2-3つを検出（typo, ロジックバグ, 表示バグ）
+  - 意図的に仕込んだバグ3つ中3つを検出（typo, ロジックバグ, 表示バグ）
   - 各ステップのスクショ記録、discovery 時の証拠スクショ
   - console error の自動検出
+  - JSON パース失敗時の多段リカバリ（壊れた JSON 修復、自然言語からアクション抽出）
+- **動画記録** — Playwright native recording で `.webm` 動画を自動保存（デモ検証済み: 4.1MB）
+- **HAR トレース** — ブラウザコンテキストの全 HTTP トラフィックを `trace.har` に記録
 - **HTML レポート** — ダークテーマ、verdict カード、stats グリッド、discovery 詳細
 - **JSON サマリー** — `summary.json` で機械可読な結果出力
-- **CLI 4コマンド** — `init` / `run` / `view` / `doctor` すべて動作
+- **CLI 4コマンド** — `init` / `run` / `view` / `doctor`（Playwright ブラウザ実存チェック対応）
 - **AI プロバイダー** — Gemini API + CLI ツール（`claude -p`, `codex -q`）対応
-- **コスト管理** — BudgetExceededError で予算超過時に部分レポート生成
+- **コスト管理** — BudgetExceededError で予算超過時に部分レポート生成。CLI プロバイダーは文字数ベースのトークン推定でコスト概算表示
 - **ガードレール** — max_steps / max_duration / ループ検出 / budget チェック
+- **SIGINT/SIGTERM** — Ctrl+C でブラウザ・アプリ・環境を安全にクリーンアップ
 
-### 動くが改善が必要
+### 動くが改善の余地あり
 
-- **Layer A テスト実行** — Playwright の起動・テスト実行に成功（`Running 3 tests using 1 worker`）。ただし AI 生成テストの品質にばらつきがあり、テスト自体が fail することが多い。テスト生成プロンプトの改善余地あり
-- **Layer B discovery 報告** — AI が `reasoning` にバグ内容を書くが `discovery` フィールドに入れ忘れることがある。プロンプト強化済みだが、LLM の気分に左右される
-- **Layer B parse failure** — AI が JSON ではなく Markdown サマリーを返すことがある。リマインダー注入で復帰可能だがステップを浪費する
-- **CLI プロバイダーのコスト追跡** — `claude -p` 経由だとトークン数が取れず `$0.0000` 表示
-
-### 未実装（v0.1 スコープ内で残っているもの）
-
-- **動画記録** — コード実装済み（Playwright native recording）、config で `video: true` にすれば動くはずだが未テスト
-- **HAR トレース** — recorder にコードあるが実際の出力は空
-- **`ghostqa doctor`** — 動作するが、Playwright ブラウザの有無チェックが甘い
-- **エラーハンドリング** — SIGINT クリーンアップ（Ctrl+C 時のプロセス・ブラウザ停止）が未実装
-- **テストコードの保存** — 生成テストは実行後に削除される。ユーザーが確認・コミットできるよう残すオプションがない
+- **Layer A テスト品質** — AI 生成テストの品質にばらつきがある。リトライ機構で緩和しているが、根本的には LLM の生成品質に依存
+- **Layer B discovery 報告** — AI が `discovery` フィールドに入れ忘れることがまれにある
+- **CLI コスト追跡** — 文字数からの推定のため実際のトークン数とは誤差がある（目安値）
 
 ### 未実装（v0.1 スコープ外 → v0.5 以降）
 
