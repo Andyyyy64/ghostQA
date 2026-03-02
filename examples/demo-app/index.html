@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 1rem; }
+    .todo-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .todo-form input { flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+    .todo-form button { padding: 0.5rem 1rem; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .todo-form button:hover { background: #1d4ed8; }
+    ul { list-style: none; }
+    li { padding: 0.75rem; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 0.5rem; }
+    li.done span { text-decoration: line-through; color: #999; }
+    .delete-btn { margin-left: auto; background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; }
+    .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .filters button { padding: 0.25rem 0.75rem; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; }
+    .filters button.active { background: #2563eb; color: white; border-color: #2563eb; }
+    .count { color: #666; font-size: 0.9rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Todo App</h1>
+
+  <form class="todo-form" id="todoForm">
+    <input type="text" id="todoInput" placeholder="What needs to be done?" required>
+    <button type="submit">Add</button>
+  </form>
+
+  <div class="filters">
+    <button class="active" data-filter="all">All</button>
+    <button data-filter="active">Active</button>
+    <button data-filter="done">Done</button>
+  </div>
+
+  <ul id="todoList"></ul>
+  <p class="count" id="todoCount"></p>
+
+  <script>
+    let todos = [];
+    let filter = 'all';
+    let nextId = 100;
+
+    async function loadTodos() {
+      const res = await fetch('/api/todos');
+      todos = await res.json();
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById('todoList');
+      const filtered = todos.filter(t => {
+        if (filter === 'active') return !t.done;
+        if (filter === 'done') return t.done;
+        return true;
+      });
+
+      list.innerHTML = filtered.map(t => `
+        <li class="${t.done ? 'done' : ''}">
+          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})">
+          <span>${t.text}</span>
+          <button class="delete-btn" onclick="remove(${t.id})">x</button>
+        </li>
+      `).join('');
+
+      const active = todos.filter(t => !t.done).length;
+      document.getElementById('todoCount').textContent = `${active} item${active !== 1 ? 's' : ''} left`;
+    }
+
+    function toggle(id) {
+      const todo = todos.find(t => t.id === id);
+      if (todo) todo.done = !todo.done;
+      render();
+    }
+
+    function remove(id) {
+      todos = todos.filter(t => t.id !== id);
+      render();
+    }
+
+    document.getElementById('todoForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('todoInput');
+      const text = input.value.trim();
+      if (!text) return;
+      todos.push({ id: nextId++, text, done: false });
+      input.value = '';
+      render();
+    });
+
+    document.querySelector('.filters').addEventListener('click', e => {
+      if (e.target.dataset.filter) {
+        filter = e.target.dataset.filter;
+        document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        render();
+      }
+    });
+
+    loadTodos();
+  </script>
+</body>
+</html>

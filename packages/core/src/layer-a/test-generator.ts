@@ -1,6 +1,6 @@
 import type { AiClient } from "../ai/client";
 import type { DiffAnalysis } from "../types/impact";
-import type { LayerAConfig, GhostQAConfig } from "../types/config";
+import type { LayerAConfig } from "../types/config";
 import consola from "consola";
 
 const SYSTEM_PROMPT = `You are a senior QA automation engineer. Generate Playwright test code based on the diff analysis and application context.
@@ -14,7 +14,7 @@ Rules:
 - Handle loading states with waitFor
 - Each test should verify one specific behavior
 
-Output ONLY valid TypeScript code wrapped in a code block. No explanations outside the code block.`;
+Output ONLY the TypeScript code. No markdown fences, no explanations. Just the raw code starting with import statements.`;
 
 export interface GeneratedTest {
   name: string;
@@ -59,24 +59,48 @@ Generate one test.describe block containing multiple test cases. Base URL is ${t
   }
 
   private parseTests(response: string): GeneratedTest[] {
-    const codeMatch = response.match(/```(?:typescript|ts|javascript|js)?\s*\n([\s\S]*?)```/);
-    if (!codeMatch) {
-      consola.warn("No code block found in test generation response");
+    // 0. Unescape literal \n sequences before any extraction
+    //    CLI tools sometimes return the entire response as a single line with escaped newlines
+    let text = response;
+    if (text.includes("\\n") && !text.includes("\n")) {
+      text = text
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .replace(/\\r/g, "\r")
+        .replace(/\\"/g, '"');
+    }
+
+    let code = "";
+
+    // 1. Try extracting from markdown code block
+    const codeBlockMatch = text.match(
+      /```(?:typescript|ts|javascript|js)?\s*\n([\s\S]*?)```/
+    );
+    if (codeBlockMatch) {
+      code = codeBlockMatch[1].trim();
+    }
+
+    // 2. Try extracting from import statement onwards
+    if (!code) {
+      const importMatch = text.match(
+        /(import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"][\s\S]*)/
+      );
+      if (importMatch) {
+        code = importMatch[1].trim();
+      }
+    }
+
+    // 3. Validate: must have playwright import AND test calls
+    const hasPlaywrightImport = code.includes("@playwright/test");
+    const hasTestCall = /\btest\s*\(/.test(code) || /\btest\.describe\s*\(/.test(code);
+
+    if (!hasPlaywrightImport || !hasTestCall) {
+      consola.warn("Response does not contain valid Playwright test code");
+      consola.debug(`Response preview: ${response.slice(0, 300)}`);
       return [];
     }
 
-    const code = codeMatch[1].trim();
-
-    // Extract individual test names from the code
-    const testNames = [...code.matchAll(/test\(['"`](.+?)['"`]/g)].map(
-      (m) => m[1]
-    );
-
-    if (testNames.length === 0) {
-      return [{ name: "generated-test", code }];
-    }
-
-    // Return the full test file as a single generated test
+    consola.info(`Extracted test code (${code.length} chars)`);
     return [{ name: "generated-tests", code }];
   }
 }

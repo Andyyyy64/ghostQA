@@ -2,6 +2,8 @@ import type { AiClient } from "../ai/client";
 import type { PageState } from "./observer";
 import type { BrowserAction } from "./navigator";
 import type { DiffAnalysis } from "../types/impact";
+import { extractJson } from "../ai/parse-json";
+import consola from "consola";
 
 const SYSTEM_PROMPT = `You are an AI QA explorer testing a web application for bugs. You interact with the browser by producing actions.
 
@@ -24,16 +26,17 @@ Available actions:
 
 For selectors, prefer semantic selectors: text="Login", role=button[name="Submit"], etc.
 
-Respond with JSON:
+Respond with ONLY this JSON (no markdown, no code fences, no explanation):
 {
   "reasoning": "Brief explanation of what you're testing and why",
-  "action": { ... },
+  "action": { "action": "click", "selector": "text=Something" },
   "observation": "What you notice about the current state (any issues?)",
-  "discovery": null or { "title": "...", "description": "...", "severity": "critical|high|medium|low|info" },
+  "discovery": null,
   "done": false
 }
 
-Set "done": true when you've explored thoroughly or found enough issues.`;
+Set "done": true when you've explored thoroughly enough.
+Set "discovery" to an object with "title", "description", "severity" when you find a bug.`;
 
 export interface PlanResult {
   reasoning: string;
@@ -49,6 +52,7 @@ export interface PlanResult {
 
 export class Planner {
   private history: Array<{ role: "user" | "assistant"; content: string }> = [];
+  private parseFailures = 0;
 
   constructor(
     private ai: AiClient,
@@ -73,7 +77,7 @@ Context about the code changes being tested:
 ${this.analysis.summary}
 
 Impact areas to focus on:
-${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.description}`).join("\n")}`;
+${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.description}`).join("\n") || "- General application testing"}`;
 
     const response = await this.ai.chatWithImage(
       systemWithContext,
@@ -93,24 +97,40 @@ ${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.descriptio
 
   private parseResponse(response: string): PlanResult {
     try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found");
+      const parsed = extractJson<Record<string, unknown>>(response);
+      this.parseFailures = 0;
 
-      const parsed = JSON.parse(jsonMatch[0]);
       return {
-        reasoning: parsed.reasoning ?? "",
-        action: parsed.action ?? { action: "wait", duration: 1000 },
-        observation: parsed.observation ?? "",
-        discovery: parsed.discovery ?? null,
-        done: parsed.done ?? false,
+        reasoning: String(parsed.reasoning ?? ""),
+        action: (parsed.action as BrowserAction) ?? { action: "wait", duration: 1000 },
+        observation: String(parsed.observation ?? ""),
+        discovery: (parsed.discovery as PlanResult["discovery"]) ?? null,
+        done: Boolean(parsed.done),
       };
-    } catch {
+    } catch (err) {
+      this.parseFailures++;
+      consola.warn(
+        `Planner parse failed (${this.parseFailures}/3): ${err instanceof Error ? err.message : String(err)}`
+      );
+
+      // Give up after 3 consecutive parse failures
+      if (this.parseFailures >= 3) {
+        return {
+          reasoning: "Stopping: too many parse failures",
+          action: { action: "wait", duration: 500 },
+          observation: "",
+          discovery: null,
+          done: true,
+        };
+      }
+
+      // Otherwise scroll to see more content and continue
       return {
-        reasoning: "Failed to parse plan, waiting",
-        action: { action: "wait", duration: 1000 },
+        reasoning: "Parse failed, scrolling to continue exploration",
+        action: { action: "scroll", direction: "down", amount: 300 },
         observation: "",
         discovery: null,
-        done: true,
+        done: false,
       };
     }
   }

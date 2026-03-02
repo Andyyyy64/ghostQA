@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .ghostqa-runs/
 .ghostqa.yml
+!examples/**/.ghostqa.yml
 *.log
 coverage/
 .env

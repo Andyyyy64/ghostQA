@@ -1,0 +1,36 @@
+app:
+  name: demo-todo-app
+  root: "."
+  build: "echo 'no build needed'"
+  start: "node server.js"
+  url: "http://localhost:3000"
+  healthcheck:
+    path: "/"
+    timeout: 10000
+    interval: 500
+
+ai:
+  provider: cli
+  cli:
+    command: claude
+
+layer_a:
+  enabled: true
+  max_tests: 3
+  timeout_per_test: 15000
+
+layer_b:
+  enabled: true
+  max_steps: 10
+  max_duration: 600000
+  viewport:
+    width: 1280
+    height: 720
+
+reporter:
+  output_dir: .ghostqa-runs
+  formats:
+    - html
+    - json
+  video: false
+  screenshots: true

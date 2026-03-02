@@ -10,10 +10,8 @@ import type { AiProvider, ChatMessage, ChatResponse } from "./provider";
  * CLI LLM tool provider — delegates AI calls to installed CLI tools.
  *
  * Supported tools:
- *   claude  — Claude Code CLI (`claude -p "prompt"`)
- *   codex   — OpenAI Codex CLI (`codex -q "prompt"`)
- *
- * Any tool that accepts a prompt via stdin and outputs text to stdout works.
+ *   claude  — Claude Code CLI (stdin piped to `claude -p --output-format text`)
+ *   codex   — OpenAI Codex CLI (stdin piped to `codex -q`)
  */
 export class CliProvider implements AiProvider {
   private command: string;
@@ -41,7 +39,7 @@ export class CliProvider implements AiProvider {
     _mediaType?: "image/png" | "image/jpeg" | "image/webp",
     _options?: { maxTokens?: number }
   ): Promise<ChatResponse> {
-    // Save image to temp file so some CLI tools can reference it
+    // Save image to temp file so CLI tools can reference it
     const imgPath = join(tmpdir(), `ghostqa-${nanoid(6)}.png`);
     await writeFile(imgPath, Buffer.from(imageBase64, "base64"));
 
@@ -60,57 +58,60 @@ export class CliProvider implements AiProvider {
     imagePath?: string
   ): string {
     const parts: string[] = [];
-    parts.push(`<system>\n${system}\n</system>`);
+    parts.push(system);
+    parts.push("---");
 
     for (const msg of messages) {
-      parts.push(`<${msg.role}>\n${msg.content}\n</${msg.role}>`);
+      const label = msg.role === "user" ? "User" : "Assistant";
+      parts.push(`${label}:\n${msg.content}`);
     }
 
     if (imagePath) {
-      parts.push(`\n[Screenshot saved at: ${imagePath}]`);
+      parts.push(`\n[Screenshot attached: ${imagePath}]`);
     }
 
     return parts.join("\n\n");
   }
 
   private async invoke(prompt: string): Promise<string> {
-    const args = this.buildArgs(prompt);
-    consola.debug(`CLI AI: ${this.command} ${args.join(" ").slice(0, 80)}...`);
+    const cmd = this.resolveCommand();
+    const args = this.buildArgs();
 
-    const result = await execa(this.command, args, {
-      input: this.needsStdin() ? prompt : undefined,
-      timeout: 120_000,
+    consola.debug(`CLI AI: ${cmd} ${args.join(" ")} (${prompt.length} chars via stdin)`);
+
+    const result = await execa(cmd, args, {
+      input: prompt,
+      timeout: 180_000,
       reject: false,
     });
 
     if (result.exitCode !== 0 && result.stderr) {
-      consola.warn(`CLI tool stderr: ${result.stderr.slice(0, 200)}`);
+      consola.warn(`CLI tool stderr: ${result.stderr.slice(0, 300)}`);
     }
 
-    return result.stdout;
+    const output = result.stdout.trim();
+    consola.debug(`CLI AI response (${output.length} chars): ${output.slice(0, 200)}...`);
+    return output;
   }
 
-  private buildArgs(prompt: string): string[] {
+  private resolveCommand(): string {
+    return this.command;
+  }
+
+  private buildArgs(): string[] {
     const cmd = this.command.split("/").pop() ?? this.command;
 
     switch (cmd) {
       case "claude":
-        // Claude Code: claude -p "prompt" --output-format text
-        return ["-p", prompt, "--output-format", "text", ...this.extraArgs];
+        // claude -p reads prompt from stdin, --output-format text returns plain text
+        return ["-p", "--output-format", "text", ...this.extraArgs];
 
       case "codex":
-        // Codex CLI: codex -q "prompt"
-        return ["-q", prompt, ...this.extraArgs];
+        // codex -q reads from stdin
+        return ["-q", ...this.extraArgs];
 
       default:
-        // Generic: pass prompt as first positional arg
-        return [prompt, ...this.extraArgs];
+        return [...this.extraArgs];
     }
-  }
-
-  private needsStdin(): boolean {
-    const cmd = this.command.split("/").pop() ?? this.command;
-    // claude and codex take prompt as arg, no stdin needed
-    return !["claude", "codex"].includes(cmd);
   }
 }

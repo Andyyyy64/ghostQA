@@ -73,9 +73,13 @@ export class LayerBRunner {
         }
       }
 
+      // Screenshot every step for the report trace
+      const stepNum = guardrails.stats.steps_taken + 1;
+      await this.recorder.screenshot(page, `step-${stepNum}`);
+
       // Plan
       const plan = await planner.plan(state);
-      consola.debug(`Plan: ${plan.reasoning}`);
+      consola.info(`Step ${stepNum}: ${plan.reasoning}`);
 
       // Record discovery from AI
       if (plan.discovery) {

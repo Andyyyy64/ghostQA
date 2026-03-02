@@ -2,6 +2,7 @@ import { execa } from "execa";
 import consola from "consola";
 import type { AiClient } from "../ai/client";
 import type { DiffAnalysis, ImpactArea, DiffFile } from "../types/impact";
+import { extractJson } from "../ai/parse-json";
 import { parseDiffOutput } from "./parser";
 
 const ANALYSIS_SYSTEM_PROMPT = `You are a senior QA engineer analyzing code changes to identify potential impact areas for testing.
@@ -11,7 +12,7 @@ Given a git diff, identify:
 3. Which URLs/pages should be tested
 4. Suggested test actions
 
-Respond in JSON format:
+Respond with ONLY this JSON (no markdown, no explanation):
 {
   "summary": "Brief summary of the changes",
   "impact_areas": [
@@ -89,26 +90,45 @@ export class DiffAnalyzer {
     files: DiffFile[]
   ): DiffAnalysis {
     try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found in response");
-
-      const parsed = JSON.parse(jsonMatch[0]) as {
+      const parsed = extractJson<{
         summary: string;
         impact_areas: ImpactArea[];
-      };
+      }>(response);
 
       return {
         files,
         summary: parsed.summary ?? "Analysis complete",
         impact_areas: parsed.impact_areas ?? [],
       };
-    } catch {
-      consola.warn("Failed to parse AI analysis response, using defaults");
+    } catch (err) {
+      consola.warn(
+        `Failed to parse AI analysis response: ${err instanceof Error ? err.message : String(err)}`
+      );
+      // Fallback: synthesize impact areas from file paths
       return {
         files,
         summary: `${files.length} file(s) changed`,
-        impact_areas: [],
+        impact_areas: this.fallbackImpactAreas(files),
       };
     }
+  }
+
+  private fallbackImpactAreas(files: DiffFile[]): ImpactArea[] {
+    if (files.length === 0) return [];
+
+    // Generate a generic impact area so Layer A/B still have something to work with
+    return [
+      {
+        area: "Application",
+        description: `${files.length} file(s) were modified: ${files.map((f) => f.path).join(", ")}`,
+        risk: "medium",
+        affected_urls: ["/"],
+        suggested_actions: [
+          "Navigate to the main page",
+          "Test interactive elements",
+          "Check for console errors",
+        ],
+      },
+    ];
   }
 }
