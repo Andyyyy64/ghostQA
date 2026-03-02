@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.ghostqa-runs/
+.ghostqa.yml
+*.log
+coverage/
+.env
+.env.*
+!.env.example
