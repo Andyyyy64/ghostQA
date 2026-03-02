@@ -128,6 +128,13 @@ ${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.descriptio
         `Planner parse failed (${this.parseFailures}/3): ${err instanceof Error ? err.message : String(err)}`
       );
 
+      // Try to salvage an action from natural language
+      const fallback = this.extractFallbackAction(response);
+      if (fallback) {
+        this.parseFailures = Math.max(0, this.parseFailures - 1); // partial recovery
+        return fallback;
+      }
+
       // Give up after 3 consecutive parse failures
       if (this.parseFailures >= 3) {
         return {
@@ -148,5 +155,56 @@ ${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.descriptio
         done: false,
       };
     }
+  }
+
+  /** Try to extract a usable action from a natural-language response */
+  private extractFallbackAction(text: string): PlanResult | null {
+    const lower = text.toLowerCase();
+
+    // Detect if the AI is saying it's done
+    if (
+      lower.includes("all tests complete") ||
+      lower.includes("finished testing") ||
+      lower.includes("exploration complete") ||
+      lower.includes("all impact areas")
+    ) {
+      return {
+        reasoning: text.slice(0, 200),
+        action: { action: "wait", duration: 500 },
+        observation: "",
+        discovery: null,
+        done: true,
+      };
+    }
+
+    // Detect click intent: "click on X" / "click the X button"
+    const clickMatch = text.match(
+      /click(?:\s+on)?\s+(?:the\s+)?["']?([^"'\n,.]+?)["']?\s*(?:button|link|element|$)/i
+    );
+    if (clickMatch) {
+      return {
+        reasoning: text.slice(0, 200),
+        action: { action: "click", selector: `text=${clickMatch[1].trim()}` },
+        observation: "",
+        discovery: null,
+        done: false,
+      };
+    }
+
+    // Detect type intent: "type X into Y"
+    const typeMatch = text.match(
+      /type\s+["']([^"']+)["']\s+(?:into|in)\s+(?:the\s+)?(.+?)(?:\s+field|\s+input)?$/im
+    );
+    if (typeMatch) {
+      return {
+        reasoning: text.slice(0, 200),
+        action: { action: "type", selector: `placeholder=${typeMatch[2].trim()}`, text: typeMatch[1] },
+        observation: "",
+        discovery: null,
+        done: false,
+      };
+    }
+
+    return null;
   }
 }
