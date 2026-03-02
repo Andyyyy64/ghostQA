@@ -1,0 +1,23 @@
+{
+  "name": "ghostqa",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ghostqa": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@ghostqa/core": "workspace:*",
+    "commander": "^13.0.0",
+    "consola": "^3.4.0",
+    "open": "^10.1.0",
+    "ora": "^8.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsup": "^8.3.0"
+  }
+}
