@@ -1,4 +1,4 @@
-import { writeFile, mkdir, rm, symlink, stat } from "node:fs/promises";
+import { writeFile, mkdir, rm, symlink, stat, cp } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { execa } from "execa";
@@ -119,6 +119,19 @@ export class TestRunner {
         }
       }
     } finally {
+      // Copy generated tests to a permanent location before cleanup
+      const savedDir = join(this.outputDir, "generated-tests");
+      try {
+        await mkdir(savedDir, { recursive: true });
+        await cp(tmpDir, savedDir, {
+          recursive: true,
+          filter: (src) => !src.includes("node_modules"),
+        });
+        consola.info(`Generated tests saved to ${savedDir}`);
+      } catch {
+        // save best-effort
+      }
+
       try {
         await rm(tmpDir, { recursive: true });
       } catch {
