@@ -4,6 +4,138 @@
 
 ---
 
+## 0. 現在の実装ステータス（v0.1 進捗）
+
+> 最終更新: 2026-03-03
+
+### 動作確認済み（実際のデモで検証）
+
+- **`ghostqa run`** — フルパイプラインが1コマンドで完走する
+- **Diff 解析** — `git diff` → AI影響推定（4-6 impact areas 生成）
+- **Layer A（テスト生成）** — AIがPlaywrightテストコードを生成、`@playwright/test` を自前解決して実行
+- **Layer B（AI探索）** — AIがブラウザを実操作し、バグを発見・evidence付きで報告
+  - AXツリー＋スクショをAIに渡す observe → plan → act ループ
+  - 意図的に仕込んだバグ3つ中2-3つを検出（typo, ロジックバグ, 表示バグ）
+  - 各ステップのスクショ記録、discovery 時の証拠スクショ
+  - console error の自動検出
+- **HTML レポート** — ダークテーマ、verdict カード、stats グリッド、discovery 詳細
+- **JSON サマリー** — `summary.json` で機械可読な結果出力
+- **CLI 4コマンド** — `init` / `run` / `view` / `doctor` すべて動作
+- **AI プロバイダー** — Gemini API + CLI ツール（`claude -p`, `codex -q`）対応
+- **コスト管理** — BudgetExceededError で予算超過時に部分レポート生成
+- **ガードレール** — max_steps / max_duration / ループ検出 / budget チェック
+
+### 動くが改善が必要
+
+- **Layer A テスト実行** — Playwright の起動・テスト実行に成功（`Running 3 tests using 1 worker`）。ただし AI 生成テストの品質にばらつきがあり、テスト自体が fail することが多い。テスト生成プロンプトの改善余地あり
+- **Layer B discovery 報告** — AI が `reasoning` にバグ内容を書くが `discovery` フィールドに入れ忘れることがある。プロンプト強化済みだが、LLM の気分に左右される
+- **Layer B parse failure** — AI が JSON ではなく Markdown サマリーを返すことがある。リマインダー注入で復帰可能だがステップを浪費する
+- **CLI プロバイダーのコスト追跡** — `claude -p` 経由だとトークン数が取れず `$0.0000` 表示
+
+### 未実装（v0.1 スコープ内で残っているもの）
+
+- **動画記録** — コード実装済み（Playwright native recording）、config で `video: true` にすれば動くはずだが未テスト
+- **HAR トレース** — recorder にコードあるが実際の出力は空
+- **`ghostqa doctor`** — 動作するが、Playwright ブラウザの有無チェックが甘い
+- **エラーハンドリング** — SIGINT クリーンアップ（Ctrl+C 時のプロセス・ブラウザ停止）が未実装
+- **テストコードの保存** — 生成テストは実行後に削除される。ユーザーが確認・コミットできるよう残すオプションがない
+
+### 未実装（v0.1 スコープ外 → v0.5 以降）
+
+- **Before/After 比較** — base 側でのアプリ実行なし（head のみ）
+- **Visual Diff** — スクショ pixel diff / SSIM / ヒートマップ
+- **Behavioral Diff** — console/network の base/head 件数比較
+- **GitHub Action** — `packages/action/` は package.json のみのプレースホルダー
+- **PR コメント** — GitHub API 連携なし
+- **フロー定義** — `.ghostqa.yml` の `flows` セクション未対応（自由探索のみ）
+- **制約 (constraints)** — 課金操作禁止 / 削除禁止 / ドメイン制限 未実装
+- **タスク別モデルルーティング** — 全タスクが同一プロバイダー
+- **最小再現生成** — discovery のステップ削減なし
+- **`record` コマンド** — 未実装
+- **`validate` コマンド** — 未実装
+- **単体/結合テスト生成** — Layer A は E2E テストのみ
+
+### 技術スタック（実装済み）
+
+| 項目 | 技術 |
+|------|------|
+| 言語 | TypeScript + Node.js v22 |
+| パッケージマネージャ | pnpm v9 (workspace monorepo) |
+| CLI | commander.js |
+| AI (API) | @google/generative-ai (Gemini) |
+| AI (CLI) | claude -p / codex -q (stdin pipe) |
+| ブラウザ | Playwright (Chromium, headless) |
+| Config | yaml + zod |
+| ビルド | tsup (esbuild) |
+| ログ | consola |
+| プロセス実行 | execa v9 |
+
+### プロジェクト構造
+
+```
+ghostqa/
+├── packages/
+│   ├── cli/          # ghostqa コマンド（init/run/view/doctor）
+│   ├── core/         # ビジネスロジック全体
+│   │   └── src/
+│   │       ├── ai/           # Provider パターン（Gemini / CLI）
+│   │       ├── config/       # Zod schema + YAML loader
+│   │       ├── diff-analyzer/# git diff → AI 影響推定
+│   │       ├── environment/  # Docker / native 環境管理
+│   │       ├── app-runner/   # build → start → healthcheck
+│   │       ├── layer-a/      # テスト生成 + 実行
+│   │       ├── layer-b/      # AI 探索ループ
+│   │       ├── recorder/     # 動画 / スクショ / console / HAR
+│   │       ├── reporter/     # HTML / JSON レポート生成
+│   │       ├── orchestrator/ # run-pipeline.ts（全体制御）
+│   │       └── types/        # 共有型定義
+│   ├── docker/       # Dockerfile + entrypoint.sh
+│   └── action/       # GitHub Action（プレースホルダー）
+└── examples/
+    └── demo-app/     # Todo アプリ（動作検証用）
+```
+
+### GUI 操作のアーキテクチャ方針
+
+ghostQA は Web QA 専用ツールではなく、**あらゆる GUI アプリのバグを AI が自動で狩るツール**。
+Web は現在の主戦場だが、デスクトップアプリ（Electron / Tauri / ネイティブ）も将来スコープに入る。
+
+**ハイブリッド方式を採用する:**
+
+| 対象 | 操作方式 | 環境 |
+|------|---------|------|
+| Web アプリ | Playwright API（DOM セレクタ + AXツリー） | headless Chromium (native) |
+| デスクトップアプリ | computer-use（スクショ → 座標クリック） | VM + Xvfb (docker/vm) |
+
+- Web は Playwright の方が速く・正確・トークン効率が良い（AXツリーはスクショより軽い）
+- 非 Web は Cursor Cloud Agent と同様の VM + computer-use API アプローチ
+- `engine.mode` で切り替え: `native`（Playwright）/ `vm`（computer-use）
+
+**モード判定:**
+- `.ghostqa.yml` で `engine.mode` を明示指定していればそれに従う
+- 未指定 or `auto` の場合、LLM がプロジェクト構成（ファイル一覧・package.json・設定ファイル等）を見て判定
+- ルールベースのヒューリスティクスは使わない。プロジェクト構成は無限にパターンがあるので LLM に任せる
+- diff 解析の前段で `project-analyzer` ステップとして実行
+
+**実装方針:**
+- Layer B の `observer` / `navigator` を抽象化し、Playwright 実装と computer-use 実装を差し替え可能にする
+- v0.1: Playwright のみ（現状）
+- v1.0: computer-use バックエンド追加、Electron / Tauri 対応、LLM モード判定
+
+**参考:** [Cursor Agent Computer Use](https://cursor.com/ja/blog/agent-computer-use) — フル VM 内でエージェントがデスクトップ操作、動画証拠生成、self-validation ループ
+
+### v0.1 成功基準の達成状況
+
+| 基準 | 状態 |
+|------|------|
+| `ghostqa run` が1コマンドで完走する | ✅ 達成 |
+| AIがブラウザを操作している様子が見える（スクショ） | ✅ 達成 |
+| 既知のバグを少なくとも1つ検出できる | ✅ 達成（2-3個検出） |
+| 動画が出力される | ⚠️ コード実装済み・未テスト |
+| 15秒デモGIFが作れる | ⚠️ スクショベースなら可能 |
+
+---
+
 ## 1. プロダクト概要
 
 ### 1.1 一言定義
