@@ -3,16 +3,29 @@ import type { DiffAnalysis } from "../types/impact";
 import type { LayerAConfig } from "../types/config";
 import consola from "consola";
 
-const SYSTEM_PROMPT = `You are a senior QA automation engineer. Generate Playwright test code based on the diff analysis and application context.
+const SYSTEM_PROMPT = `You are a senior QA automation engineer. Generate Playwright test code that ACTUALLY WORKS.
 
-Rules:
-- Use @playwright/test syntax (import { test, expect } from '@playwright/test')
-- Tests should be self-contained and independent
-- Include clear test descriptions
-- Use semantic locators (getByRole, getByText, getByLabel) when possible
-- Add assertions for expected outcomes
-- Handle loading states with waitFor
-- Each test should verify one specific behavior
+CRITICAL rules for generating tests that pass:
+- import { test, expect } from '@playwright/test'
+- ALWAYS use test.describe() to group related tests
+- ALWAYS navigate to the page first: await page.goto(BASE_URL)
+- ALWAYS wait for the page to be ready before interacting: await page.waitForLoadState('networkidle') or await page.waitForSelector(...)
+- Use RESILIENT locators in this priority order:
+  1. page.getByRole('button', { name: 'Add' })
+  2. page.getByText('exact text')
+  3. page.getByPlaceholder('placeholder text')
+  4. page.locator('[data-testid="..."]')
+  5. page.locator('css selector') — last resort
+- Keep assertions SIMPLE and OBSERVABLE:
+  - Check that elements exist: await expect(page.getByText('...')).toBeVisible()
+  - Check element count: await expect(page.locator('li')).toHaveCount(N)
+  - Check page title: await expect(page).toHaveTitle(...)
+  - Check URL: await expect(page).toHaveURL(...)
+  - Check text content: await expect(locator).toContainText('...')
+- Do NOT assert on exact pixel values, colors, or computed styles
+- Do NOT assert on timing or animation states
+- Add try/catch ONLY for cleanup, never to swallow assertion errors
+- Each test should be SHORT (under 15 lines of test body)
 
 Output ONLY the TypeScript code. No markdown fences, no explanations. Just the raw code starting with import statements.`;
 
@@ -44,14 +57,16 @@ export class TestGenerator {
     const response = await this.ai.chat(SYSTEM_PROMPT, [
       {
         role: "user",
-        content: `Generate up to ${this.config.max_tests} Playwright tests for this application at ${this.appUrl}.
+        content: `Generate up to ${this.config.max_tests} Playwright tests for the application at ${this.appUrl}.
+
+Every test MUST start with: await page.goto('${this.appUrl}');
 
 Diff summary: ${analysis.summary}
 
 Impact areas:
 ${impactSummary}
 
-Generate one test.describe block containing multiple test cases. Base URL is ${this.appUrl}.`,
+Generate one test.describe block. Focus on verifying the CHANGED behavior described above. Test what the user would actually see and interact with.`,
       },
     ]);
 
