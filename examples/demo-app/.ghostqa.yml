@@ -21,7 +21,7 @@ layer_a:
 
 layer_b:
   enabled: true
-  max_steps: 10
+  max_steps: 50
   max_duration: 600000
   viewport:
     width: 1280
