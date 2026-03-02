@@ -11,6 +11,7 @@ app:
 
 ai:
   provider: cli
+  max_budget_usd: 5.0
   cli:
     command: claude
 
