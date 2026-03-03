@@ -124,7 +124,7 @@ export async function runPipeline(
 
       try {
         // 5. Layer A
-        if (config.layer_a.enabled) {
+        if (config.layer_a.enabled && analysis.impact_areas.length > 0) {
           onProgress?.("Layer A: Generating tests...");
           const layerA = new LayerARunner(ai, config, outputDir);
           const layerAResult = await layerA.run(analysis);
@@ -138,7 +138,7 @@ export async function runPipeline(
         }
 
         // 6. Layer B
-        if (config.layer_b.enabled) {
+        if (config.layer_b.enabled && analysis.impact_areas.length > 0) {
           onProgress?.("Layer B: AI exploration...");
           const layerB = new LayerBRunner(ai, config, recorder);
           const layerBResult = await layerB.run(page, analysis, onProgress);
