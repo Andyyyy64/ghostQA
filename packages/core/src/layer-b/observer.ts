@@ -51,38 +51,11 @@ export class Observer {
 
   private async getAxTree(page: Page): Promise<string> {
     try {
-      const snapshot = await page.accessibility.snapshot();
-      if (!snapshot) return "(empty accessibility tree)";
-      return this.formatAxNode(snapshot, 0);
+      // Playwright 1.49+ uses ariaSnapshot() instead of deprecated accessibility.snapshot()
+      const snapshot = await page.locator(":root").ariaSnapshot();
+      return snapshot || "(empty accessibility tree)";
     } catch {
       return "(failed to get accessibility tree)";
     }
-  }
-
-  private formatAxNode(
-    node: {
-      role: string;
-      name: string;
-      children?: Array<{ role: string; name: string; children?: unknown[] }>;
-      [key: string]: unknown;
-    },
-    depth: number
-  ): string {
-    const indent = "  ".repeat(depth);
-    let line = `${indent}[${node.role}] "${node.name}"`;
-
-    if (node.value) line += ` value="${node.value}"`;
-    if (node.checked !== undefined) line += ` checked=${node.checked}`;
-    if (node.disabled) line += ` disabled`;
-
-    const lines = [line];
-    if (node.children) {
-      for (const child of node.children) {
-        lines.push(
-          this.formatAxNode(child as Parameters<typeof this.formatAxNode>[0], depth + 1)
-        );
-      }
-    }
-    return lines.join("\n");
   }
 }
