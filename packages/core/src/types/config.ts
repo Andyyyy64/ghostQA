@@ -29,13 +29,12 @@ export const EnvironmentConfigSchema = z.object({
     .default({}),
 });
 
-export const AiConfigSchema = z.object({
+export const AiProviderConfigSchema = z.object({
   provider: z
     .enum(["gemini", "cli"])
     .default("gemini")
     .describe("AI provider: 'gemini' for Google API, 'cli' for CLI LLM tools"),
   model: z.string().default("gemini-2.0-flash"),
-  max_budget_usd: z.number().default(1.0).describe("Maximum budget in USD"),
   api_key_env: z.string().default("GEMINI_API_KEY"),
   cli: z
     .object({
@@ -47,6 +46,18 @@ export const AiConfigSchema = z.object({
         .array(z.string())
         .default([])
         .describe("Extra args passed to the CLI tool"),
+    })
+    .default({}),
+});
+
+export const AiConfigSchema = AiProviderConfigSchema.extend({
+  max_budget_usd: z.number().default(1.0).describe("Maximum budget in USD"),
+  routing: z
+    .object({
+      diff_analysis: AiProviderConfigSchema.optional(),
+      test_generation: AiProviderConfigSchema.optional(),
+      ui_control: AiProviderConfigSchema.optional(),
+      triage: AiProviderConfigSchema.optional(),
     })
     .default({}),
 });
@@ -69,6 +80,26 @@ export const LayerBConfigSchema = z.object({
     .default({}),
 });
 
+export const FlowSchema = z.object({
+  name: z.string(),
+  goal: z.string(),
+  priority: z.enum(["high", "medium", "low"]).default("medium"),
+  credentials: z
+    .object({
+      username_env: z.string().optional(),
+      password_env: z.string().optional(),
+    })
+    .optional(),
+});
+
+export const ConstraintsConfigSchema = z.object({
+  no_payment: z.boolean().default(false),
+  no_delete: z.boolean().default(false),
+  no_external_links: z.boolean().default(false),
+  allowed_domains: z.array(z.string()).default([]),
+  forbidden_selectors: z.array(z.string()).default([]),
+});
+
 export const ReporterConfigSchema = z.object({
   output_dir: z.string().default(".ghostqa-runs"),
   formats: z.array(z.enum(["html", "json"])).default(["html", "json"]),
@@ -83,6 +114,8 @@ export const GhostQAConfigSchema = z.object({
   layer_a: LayerAConfigSchema.default({}),
   layer_b: LayerBConfigSchema.default({}),
   reporter: ReporterConfigSchema.default({}),
+  flows: z.array(FlowSchema).default([]),
+  constraints: ConstraintsConfigSchema.default({}),
 });
 
 export type GhostQAConfig = z.infer<typeof GhostQAConfigSchema>;
