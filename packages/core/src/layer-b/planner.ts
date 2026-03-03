@@ -63,8 +63,8 @@ export class Planner {
     private analysis: DiffAnalysis
   ) {}
 
-  async plan(state: PageState): Promise<PlanResult> {
-    const stateDescription = `Current page state:
+  async plan(state: PageState, lastActionError?: string): Promise<PlanResult> {
+    let stateDescription = `Current page state:
 URL: ${state.url}
 Title: ${state.title}
 
@@ -72,6 +72,10 @@ Accessibility tree:
 ${state.axTree}
 
 ${state.consoleLogs.length > 0 ? `Console logs since last action:\n${state.consoleLogs.join("\n")}` : "No new console logs."}`;
+
+    if (lastActionError) {
+      stateDescription += `\n\n⚠️ YOUR PREVIOUS ACTION FAILED with error: ${lastActionError}\nThe action was NOT executed. The page state did NOT change from your action. Adjust your approach (e.g. use a different selector, or skip this interaction). Do NOT report a bug caused by your own failed action.`;
+    }
 
     this.history.push({ role: "user", content: stateDescription });
 

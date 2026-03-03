@@ -50,6 +50,8 @@ export class LayerBRunner {
 
     observer.startListening(page);
 
+    let lastActionError: string | undefined;
+
     while (true) {
       const stopCheck = guardrails.shouldStop();
       if (stopCheck.stop) {
@@ -69,7 +71,9 @@ export class LayerBRunner {
         const screenshot = await this.recorder.screenshot(page, "console-error");
         for (const d of consoleDiscoveries) {
           d.screenshot_path = screenshot;
-          discoveries.push(d);
+          if (!discoverer.isDuplicate(d, discoveries)) {
+            discoveries.push(d);
+          }
         }
       }
 
@@ -77,16 +81,21 @@ export class LayerBRunner {
       const stepNum = guardrails.stats.steps_taken + 1;
       await this.recorder.screenshot(page, `step-${stepNum}`);
 
-      // Plan
-      const plan = await planner.plan(state);
+      // Plan (pass action error from previous step so AI knows it failed)
+      const plan = await planner.plan(state, lastActionError);
+      lastActionError = undefined;
       consola.info(`Step ${stepNum}: ${plan.reasoning}`);
 
-      // Record discovery from AI
+      // Record discovery from AI (with dedup)
       if (plan.discovery) {
         const screenshot = await this.recorder.screenshot(page, "discovery");
         const d = discoverer.createFromPlan(plan.discovery, state.url, screenshot);
-        discoveries.push(d);
-        consola.warn(`Discovery: [${d.severity}] ${d.title}`);
+        if (!discoverer.isDuplicate(d, discoveries)) {
+          discoveries.push(d);
+          consola.warn(`Discovery: [${d.severity}] ${d.title}`);
+        } else {
+          consola.debug(`Duplicate discovery skipped: ${d.title}`);
+        }
       }
 
       if (plan.done) {
@@ -98,10 +107,8 @@ export class LayerBRunner {
       try {
         await navigator.execute(page, plan.action);
       } catch (err) {
-        consola.debug(
-          `Action failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-        // Not necessarily a bug — element might have disappeared
+        lastActionError = err instanceof Error ? err.message : String(err);
+        consola.warn(`Action failed: ${lastActionError}`);
       }
 
       guardrails.recordStep(
