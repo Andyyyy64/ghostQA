@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="demo.gif" alt="ghostQA demo" width="700">
-</p>
-
 <h1 align="center">ghostQA</h1>
 
 <p align="center">
