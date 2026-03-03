@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import consola from "consola";
+import type { GhostQAConfig } from "../types/config";
 
 export type ActionType =
   | "click"
@@ -22,7 +23,20 @@ export interface BrowserAction {
 }
 
 export class Navigator {
+  private constraints: GhostQAConfig["constraints"];
+
+  constructor(constraints?: GhostQAConfig["constraints"]) {
+    this.constraints = constraints ?? {
+      no_payment: false,
+      no_delete: false,
+      no_external_links: false,
+      allowed_domains: [],
+      forbidden_selectors: [],
+    };
+  }
+
   async execute(page: Page, action: BrowserAction): Promise<void> {
+    this.checkConstraints(page, action);
     consola.debug(`Action: ${action.action} ${action.selector ?? action.url ?? ""}`);
 
     switch (action.action) {
@@ -77,5 +91,51 @@ export class Navigator {
     // Wait for any navigation/rendering
     await page.waitForLoadState("domcontentloaded").catch(() => {});
     await page.waitForTimeout(300);
+  }
+
+  private checkConstraints(page: Page, action: BrowserAction): void {
+    const c = this.constraints;
+
+    // Check forbidden selectors
+    if (action.selector && c.forbidden_selectors.length > 0) {
+      for (const fs of c.forbidden_selectors) {
+        if (action.selector.includes(fs)) {
+          throw new Error(`Constraint: selector "${action.selector}" matches forbidden pattern "${fs}"`);
+        }
+      }
+    }
+
+    // Check payment-related actions
+    if (c.no_payment && action.selector) {
+      const lower = action.selector.toLowerCase();
+      if (/pay|purchase|buy|checkout|subscribe|billing/i.test(lower)) {
+        throw new Error(`Constraint: payment action blocked (no_payment=true): "${action.selector}"`);
+      }
+    }
+
+    // Check delete-related actions
+    if (c.no_delete && action.selector) {
+      const lower = action.selector.toLowerCase();
+      if (/delete|remove|destroy|drop/i.test(lower)) {
+        throw new Error(`Constraint: delete action blocked (no_delete=true): "${action.selector}"`);
+      }
+    }
+
+    // Check domain constraints for goto actions
+    if (action.action === "goto" && action.url) {
+      if (c.no_external_links) {
+        const currentHost = new URL(page.url()).hostname;
+        const targetHost = new URL(action.url).hostname;
+        if (targetHost !== currentHost) {
+          throw new Error(`Constraint: external navigation blocked (no_external_links=true): "${action.url}"`);
+        }
+      }
+      if (c.allowed_domains.length > 0) {
+        const targetHost = new URL(action.url).hostname;
+        if (!c.allowed_domains.includes(targetHost)) {
+          throw new Error(`Constraint: domain "${targetHost}" not in allowed_domains: [${c.allowed_domains.join(", ")}]`);
+        }
+      }
+    }
   }
 }

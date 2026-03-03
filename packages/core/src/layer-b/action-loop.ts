@@ -32,8 +32,8 @@ export class LayerBRunner {
     consola.info("=== Layer B: AI Exploration ===");
 
     const observer = new Observer(this.recorder);
-    const navigator = new Navigator();
-    const planner = new Planner(this.ai, analysis);
+    const navigator = new Navigator(this.config.constraints);
+    const planner = new Planner(this.ai, analysis, this.config.flows);
     const discoverer = new Discoverer();
     const guardrails = new Guardrails(
       this.config.layer_b,
