@@ -50,10 +50,22 @@
 - **`record` コマンド** — headed ブラウザで手動操作を録画
 - **`validate` コマンド** — .ghostqa.yml のバリデーション + 設定サマリー表示
 
-### 未実装（v1.0 以降）
+### 未実装（v1.0 ロードマップ — 優先順）
 
-- **最小再現生成** — discovery のステップ削減なし
-- **単体/結合テスト生成** — Layer A は E2E テストのみ
+| 優先度 | 項目 | 概要 |
+|--------|------|------|
+| 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。現状 Gemini API + CLI (claude/codex) のみ → 主要3社 API + CLI を全カバー |
+| 2 | **computer-use バックエンド** | Web 以外の GUI アプリ対応（CLI / Electron / Tauri）。ghostQA on ghostQA のドッグフーディング |
+| 3 | **決定論リプレイモード** | Layer B の発見を Playwright テストに固定化。発見→テスト資産化 |
+| 4 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
+| 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、CI での継続比較基準にする |
+| 6 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
+| 並行 | **自プロジェクトのテスト強化** | Layer B 周りのカバレッジ改善。リファクタ耐性 |
+
+**スコープ外（やらない）:**
+- プラグイン機構（過剰設計）
+- ダッシュボード / Slack / Discord 通知（CLI + GitHub Action で十分）
+- Self-Consistency チェック（コスト2倍でメリット薄い）
 
 ### 技術スタック（実装済み）
 
@@ -160,7 +172,7 @@ ghostqa は、コード変更（diff）に対して隔離されたGUI環境でAI
 
 - 全状態空間の完全網羅（戦略的カバレッジで現実的に攻める）
 - LLMによる最終合否判定（判定は観測事実ベース。AIは「発見」と「説明」を担当）
-- Windows/macOSネイティブアプリの対応（v1以降で検討）
+- Windows/macOSネイティブアプリの対応（v1.0 で computer-use バックエンド追加後に検討）
 - セキュリティスキャナの代替（SAST/DAST専用ツールの領域には踏み込まない）
 
 ---
@@ -679,65 +691,73 @@ jobs:
 
 ## 9. AIモデル設定（詳細）
 
-### 9.1 v0.1 の方針
+### 9.1 現在の実装
 
-v0.1 では**モデルは1つに固定**。タスク別ルーティングはv0.5以降。
+**API プロバイダー:** Gemini API（`@google/generative-ai`）
+**CLI プロバイダー:** `claude -p` / `codex -q`（stdin pipe）
+**タスク別ルーティング:** `ai.routing` で実装済み（v0.5）
 
 ```yaml
 ai:
-  model: "claude-sonnet-4-20250514"
-  provider: "anthropic"               # anthropic | openai
-  api_key_env: "ANTHROPIC_API_KEY"
-  temperature: 0.2
-  max_steps: 80
-  max_minutes: 10
+  provider: gemini                    # gemini | cli
+  model: gemini-2.0-flash
+  max_budget_usd: 5.0
+  cli:
+    command: claude                   # claude | codex
 ```
 
-### 9.2 v0.5 以降のタスク別ルーティング
+### 9.2 v1.0 で追加するプロバイダー
+
+| プロバイダー | 種別 | 方式 |
+|-------------|------|------|
+| Anthropic (Claude) | API | `@anthropic-ai/sdk` 直接呼び出し |
+| OpenAI | API | `openai` SDK 直接呼び出し |
+| Gemini CLI | CLI | `gemini` コマンドを stdin pipe |
+
+**v1.0 完了後のプロバイダー全体像:**
+
+| 種別 | Anthropic | OpenAI | Google |
+|------|-----------|--------|--------|
+| API | `anthropic` | `openai` | `gemini`（実装済み） |
+| CLI | `claude -p`（実装済み） | `codex -q`（実装済み） | `gemini`（v1.0） |
+
+### 9.3 タスク別ルーティング（実装済み）
 
 ```yaml
 ai:
+  provider: gemini
+  model: gemini-2.0-flash
+  max_budget_usd: 3.0
   routing:
-    diff_analysis: "primary"           # diff読み→影響推定
-    test_generation: "primary"         # テストコード生成
-    ui_control: "primary"              # GUI操作（vision必須）
-    triage: "cheap"                    # 結果要約・レポート生成
-    minimize: "cheap"                  # 最小再現の方針決定
-
-  providers:
-    primary:
-      type: "direct_api"               # direct_api | cli_harness | compat_endpoint
-      vendor: "anthropic"
-      model: "claude-sonnet-4-20250514"
-      api_key_env: "ANTHROPIC_API_KEY"
-      timeout_s: 60
-      retries: 2
-
-    cheap:
-      type: "direct_api"
-      vendor: "openai"
-      model: "gpt-4o-mini"
-      api_key_env: "OPENAI_API_KEY"
-      timeout_s: 30
-      retries: 1
-
-    local:
-      type: "compat_endpoint"
-      vendor: "openai_compat"
-      model: "llama-3"
-      base_url: "http://localhost:1234/v1"
+    diff_analysis:
+      provider: cli
+      cli:
+        command: claude
+    ui_control:
+      provider: gemini
+      model: gemini-2.0-flash
 ```
 
-### 9.3 CLI Harness対応（v1）
-
-Claude Code や Codex CLI を外部プロセスとして呼び出すモード。
+### 9.4 v1.0 でのルーティング例（全プロバイダー対応後）
 
 ```yaml
-providers:
-  claude_code:
-    type: "cli_harness"
-    binary: "claude"
-    model_flag: "--model claude-sonnet-4-20250514"
+ai:
+  provider: anthropic                  # デフォルト
+  model: claude-sonnet-4-20250514
+  max_budget_usd: 5.0
+  routing:
+    diff_analysis:
+      provider: anthropic
+      model: claude-sonnet-4-20250514
+    test_generation:
+      provider: openai
+      model: gpt-4o
+    ui_control:
+      provider: gemini                 # vision が安い
+      model: gemini-2.0-flash
+    triage:
+      provider: openai
+      model: gpt-4o-mini              # 安いモデルで十分
 ```
 
 ---
@@ -821,13 +841,10 @@ ghostqa run
 | Visual Diff | スクショのpixel diff + SSIM + ヒートマップ生成 |
 | Behavioral Diff | console/network のbase/head件数比較 |
 | GitHub Action | PRで自動実行 → Check Run + PRコメント + Artifacts |
-| 判定ポリシー | `.ghostqa.yml` の `policy` セクションによるFAIL/WARN/PASS判定 |
 | タスク別モデル | diff解析/テスト生成/UI操作/要約を別モデルに振り分け可能 |
-| 単体/結合テスト生成 | Layer A にjest/vitest向けの単体・結合テスト生成を追加 |
-| 最小再現 | FAIL時にステップを削減して最小の再現手順を生成 |
-| マスク | 動的領域（日時、広告、ランダムID）のマスク対応 |
-| フレーク対策 | 同一テストを2回実行し、1回目FAIL・2回目PASSならWARN（flaky） |
-| `compare` コマンド | 既存の2つのRunを比較 |
+| 制約 (constraints) | no_payment / no_delete / no_external_links / allowed_domains / forbidden_selectors |
+| `validate` コマンド | .ghostqa.yml のバリデーション + 設定サマリー表示 |
+| `record` コマンド | headed ブラウザで手動操作を録画 |
 
 #### v0.5 の体験
 
@@ -855,37 +872,32 @@ ghostqa run --base origin/main --head HEAD
 
 ### v1.0 — "選ばれるツール"（目標：v0.5 から +2-3ヶ月）
 
-> **ゴール：OSS として成熟し、コミュニティが使い始める品質。拡張性・安定性・ドキュメントが揃う。**
+> **ゴール：Web 以外の GUI アプリにも対応し、OSS として成熟。コミュニティが使い始める品質。**
 
-#### v0.5 → v1.0 で追加するもの
+#### v0.5 → v1.0 で追加するもの（優先順）
 
-| カテゴリ | 項目 |
-|---------|------|
-| **安定性** | 決定論リプレイモード（探索結果をPlaywrightに固定→以後は決定論実行） |
-| | Baseline管理（承認済みのArtifact Packを保存し、次回比較の基準にする） |
-| | Self-Consistency チェック（同一フローを2回探索→共通部分だけ採用） |
-| **拡張性** | プロバイダ抽象化完了（OpenAI / Anthropic / compat / CLI harness） |
-| | カスタムDockerイメージ対応 |
-| | プラグイン機構（新しいテストフレームワーク / diffアルゴリズム / ストレージ） |
-| | Baseline保存先のプラガブル化（GHA Artifacts / S3 / MinIO / GCS） |
-| **対応範囲** | Electron / Tauri アプリ対応（実験的） |
-| | モバイルWeb（viewportエミュレーション） |
-| | `record` コマンド（手動操作を録画 → リプレイスクリプト化） |
-| **レポート** | ダッシュボード（Run履歴の閲覧、トレンド表示） |
-| | Slack / Discord 通知連携 |
-| | JSON Webhook（任意のCIツール連携） |
-| **ドキュメント** | 導入ガイド（フレームワーク別：Next.js / Nuxt / Remix 等） |
-| | トラブルシューティング |
-| | Contributing ガイド |
-| **コミュニティ** | awesome-ghostqa（設定テンプレ集） |
-| | GitHub Discussions / Discord |
+| 優先度 | 項目 | 内容 |
+|--------|------|------|
+| 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。主要3社（Anthropic / OpenAI / Google）の API + CLI を全カバー |
+| 2 | **computer-use バックエンド** | スクショ → 座標クリックで任意の GUI アプリを操作。Layer B の observer/navigator を抽象化し、Playwright 実装と computer-use 実装を差し替え可能に。ghostQA 自身の CLI を ghostQA でテストするドッグフーディング |
+| 3 | **決定論リプレイモード** | Layer B の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
+| 4 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
+| 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、次回比較の基準にする |
+| 6 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
+| 並行 | **テスト強化** | Layer B 周りのユニットテスト・E2E テスト拡充 |
+
+#### スコープ外（やらない）
+
+- プラグイン機構（過剰設計。必要になったら検討）
+- ダッシュボード / Slack / Discord 通知（CLI + GitHub Action で十分）
+- Self-Consistency チェック（コスト2倍でメリット薄い）
 
 #### v1.0 の成功基準
 
 - GitHub 1000★ 到達
+- Web 以外のアプリ（CLI / Electron）で ghostQA が動作する
 - 週次アクティブユーザー（CLIダウンロード or Action実行）が安定して増加
 - 外部からのPR/Issue が定期的に来る
-- 「ghostqa 使ってる」の投稿がX/HN/Reddit で観測される
 
 ---
 
