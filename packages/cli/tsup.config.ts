@@ -5,6 +5,8 @@ export default defineConfig({
   format: ["esm"],
   clean: true,
   sourcemap: true,
+  noExternal: [],
+  external: ["playwright"],
   banner: {
     js: "#!/usr/bin/env node",
   },
