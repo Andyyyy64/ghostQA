@@ -4,16 +4,42 @@ import { CliProvider } from "./cli-provider";
 import { CostTracker } from "./cost-tracker";
 import type { AiConfig } from "../types/config";
 
+export type AiTask = "diff_analysis" | "test_generation" | "ui_control" | "triage";
+
 export class AiClient {
-  private provider: AiProvider;
+  private defaultProvider: AiProvider;
+  private taskProviders: Partial<Record<AiTask, AiProvider>> = {};
+  private activeProvider: AiProvider;
   public costTracker: CostTracker;
 
-  constructor(config: AiConfig) {
+  constructor(private config: AiConfig) {
     this.costTracker = new CostTracker(config.model, config.max_budget_usd);
-    this.provider = createProvider(config);
+    this.defaultProvider = createProvider(config);
+    this.activeProvider = this.defaultProvider;
+
     if (config.provider === "cli") {
       this.costTracker.isRateLimited = true;
     }
+
+    // Build task-specific providers from routing config
+    const routing = config.routing;
+    for (const [task, providerConfig] of Object.entries(routing)) {
+      if (providerConfig) {
+        this.taskProviders[task as AiTask] = createProvider(providerConfig);
+      }
+    }
+  }
+
+  /** Set the active task context for routing */
+  useTask(task: AiTask): this {
+    this.activeProvider = this.taskProviders[task] ?? this.defaultProvider;
+    return this;
+  }
+
+  /** Reset to default provider */
+  resetTask(): this {
+    this.activeProvider = this.defaultProvider;
+    return this;
   }
 
   async chat(
@@ -22,9 +48,9 @@ export class AiClient {
     options?: { maxTokens?: number }
   ): Promise<string> {
     this.costTracker.checkBudget();
-    const response = await this.provider.chat(system, messages, options);
+    const response = await this.activeProvider.chat(system, messages, options);
     this.costTracker.track(response.inputTokens, response.outputTokens);
-    this.syncCliCost();
+    this.syncCliCost(this.activeProvider);
     return response.text;
   }
 
@@ -36,7 +62,7 @@ export class AiClient {
     options?: { maxTokens?: number }
   ): Promise<string> {
     this.costTracker.checkBudget();
-    const response = await this.provider.chatWithImage(
+    const response = await this.activeProvider.chatWithImage(
       system,
       messages,
       imageBase64,
@@ -44,20 +70,19 @@ export class AiClient {
       options
     );
     this.costTracker.track(response.inputTokens, response.outputTokens);
-    this.syncCliCost();
+    this.syncCliCost(this.activeProvider);
     return response.text;
   }
 
-  /** Sync reported cost from CLI provider (claude reports actual cost per call) */
-  private syncCliCost(): void {
-    if (this.provider instanceof CliProvider && this.provider.reportedCostUsd > 0) {
-      this.costTracker.addReportedCost(this.provider.reportedCostUsd);
-      this.provider.reportedCostUsd = 0; // reset after syncing
+  private syncCliCost(provider: AiProvider): void {
+    if (provider instanceof CliProvider && provider.reportedCostUsd > 0) {
+      this.costTracker.addReportedCost(provider.reportedCostUsd);
+      provider.reportedCostUsd = 0;
     }
   }
 }
 
-function createProvider(config: AiConfig): AiProvider {
+function createProvider(config: { provider: string; model: string; api_key_env: string; cli: { command: string; args: string[] } }): AiProvider {
   switch (config.provider) {
     case "gemini": {
       const apiKey = process.env[config.api_key_env];
