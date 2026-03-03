@@ -2,7 +2,6 @@ import type { AiClient } from "../ai/client";
 import type { PageState } from "./observer";
 import type { BrowserAction } from "./navigator";
 import type { DiffAnalysis } from "../types/impact";
-import type { GhostQAConfig } from "../types/config";
 import { extractJson } from "../ai/parse-json";
 import consola from "consola";
 
@@ -59,15 +58,10 @@ export class Planner {
   private history: Array<{ role: "user" | "assistant"; content: string }> = [];
   private parseFailures = 0;
 
-  private flows: GhostQAConfig["flows"];
-
   constructor(
     private ai: AiClient,
-    private analysis: DiffAnalysis,
-    flows: GhostQAConfig["flows"] = []
-  ) {
-    this.flows = flows;
-  }
+    private analysis: DiffAnalysis
+  ) {}
 
   async plan(state: PageState): Promise<PlanResult> {
     const stateDescription = `Current page state:
@@ -87,8 +81,7 @@ Context about the code changes being tested:
 ${this.analysis.summary}
 
 Impact areas to focus on:
-${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.description}`).join("\n") || "- General application testing"}
-${this.flows.length > 0 ? `\nDefined test flows (prioritize these):\n${this.flows.map((f) => `- [${f.priority}] ${f.name}: ${f.goal}`).join("\n")}` : ""}`;
+${this.analysis.impact_areas.map((a) => `- ${a.area} (${a.risk}): ${a.description}`).join("\n") || "- General application testing"}`;
 
     const response = await this.ai.chatWithImage(
       systemWithContext,

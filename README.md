@@ -1,46 +1,88 @@
-# ghostQA
+<p align="center">
+  <img src="demo.gif" alt="ghostQA demo" width="700">
+</p>
 
-AI-powered browser testing that finds bugs in your code changes.
+<h1 align="center">ghostQA</h1>
 
-ghostQA analyzes your git diff, launches your app, and lets an AI actually operate a browser to generate tests and explore your application for regressions, crashes, and visual bugs.
+<p align="center">
+  <strong>AI-powered regression testing. Zero test code required.</strong>
+</p>
 
-## How It Works
+<p align="center">
+  ghostQA reads your git diff, launches your app, and sends an AI to operate a real browser —<br>
+  generating tests, exploring pages, and catching bugs <em>before</em> your users do.
+</p>
+
+---
+
+## Why ghostQA?
+
+You ship a PR. The diff looks fine. But did it break the checkout page? Does the form still submit? Is there a new console error you didn't notice?
+
+**If you have E2E tests**, great — but they only cover what you already thought to test.
+**If you don't have E2E tests**, you're flying blind.
+
+ghostQA fills the gap:
+
+- **No tests to write** — the AI reads your diff and generates Playwright tests automatically
+- **No scenarios to define** — the AI explores your app on its own, driven by what your diff actually changed
+- **Evidence, not opinions** — every finding comes with screenshots, video, console logs, and reproduction steps
+- **Works with any dev tool** — Cursor, Claude Code, Codex, hand-written code. ghostQA doesn't care how you write code, only what changed
+
+## What It Does
 
 ```
-git diff → AI Impact Analysis → Build & Start App → Browser Testing → HTML Report
+git diff → AI Impact Analysis → Build & Start App → Two-Layer Testing → HTML Report
 ```
 
-ghostQA runs two layers of testing against your application:
+### Layer A: Test Generation
 
-**Layer A (Test Generation)** - The AI reads your diff, identifies affected areas, and generates targeted Playwright E2E tests. These tests are executed automatically and results are collected.
+The AI reads your diff, identifies the affected areas, and generates targeted Playwright E2E tests. These run deterministically — no flakiness from AI judgment. Failed tests retry once. Generated test files are saved so you can commit them as permanent regression tests.
 
-**Layer B (AI Exploration)** - An AI agent autonomously navigates your app in a real browser. It observes the page (accessibility tree + screenshots), plans actions, interacts with UI elements, and reports any anomalies it discovers - console errors, crashes, broken layouts, unexpected behavior.
+### Layer B: AI Exploration
+
+An AI agent autonomously navigates your running app in a real browser. It reads the accessibility tree and screenshots, plans what to do next, clicks buttons, fills forms, and reports anything wrong — crashes, console errors, broken layouts, dead clicks, blank pages, infinite loading states.
+
+The AI doesn't follow a script. It explores based on what your diff actually changed.
+
+### Before/After Comparison
+
+Run against two git refs to see exactly what regressed:
+
+```bash
+ghostqa run --base main --head HEAD
+```
+
+This runs the full pipeline on both versions and generates:
+- **Visual diff** — pixel-level screenshot comparison with heatmaps
+- **Behavioral diff** — console error count changes between versions
+- **Regression detection** — new bugs vs. fixed bugs, side by side
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js >= 22
-- Git
-- One of the following AI providers:
-  - `GEMINI_API_KEY` environment variable (default, Google Gemini)
-  - [Claude Code](https://github.com/anthropics/claude-code) CLI installed
-  - [Codex](https://github.com/openai/codex) CLI installed
+- **Node.js >= 22**
+- **Git**
+- **AI provider** (pick one):
+  - Set `GEMINI_API_KEY` env var (Google Gemini — default, free tier available)
+  - Install [Claude Code](https://github.com/anthropics/claude-code) CLI
+  - Install [Codex](https://github.com/openai/codex) CLI
 
-### Install
+### 1. Install
 
 ```bash
-pnpm add -g ghostqa
+npm install -g ghostqa
 ```
 
-### Initialize
+### 2. Initialize
 
 ```bash
 cd your-project
 ghostqa init
 ```
 
-This creates a `.ghostqa.yml` config file. Edit it to match your project:
+Edit the generated `.ghostqa.yml`:
 
 ```yaml
 app:
@@ -50,119 +92,217 @@ app:
   url: "http://localhost:3000"
 
 ai:
-  provider: gemini          # or: cli
-  model: gemini-2.0-flash
+  provider: gemini       # or: cli (for Claude Code / Codex)
   max_budget_usd: 1.0
 ```
 
-### Run
+### 3. Run
 
 ```bash
 ghostqa run
 ```
 
-ghostQA will:
+That's it. ghostQA will:
 
-1. Analyze your latest git diff
+1. Parse your latest git diff and estimate impact areas with AI
 2. Build and start your application
-3. Generate and run targeted E2E tests (Layer A)
-4. Explore your app autonomously with AI (Layer B)
-5. Output an HTML report with findings
+3. Generate and execute targeted Playwright E2E tests
+4. Launch an AI agent to explore your app in a real browser
+5. Record video, screenshots, and console logs
+6. Output an HTML report with a PASS / FAIL / WARN verdict
 
-### View Report
+### 4. View the report
 
 ```bash
 ghostqa view
 ```
 
-Opens the latest HTML report in your browser.
+## CLI Commands
 
-### Check Setup
+| Command | Description |
+|---------|-------------|
+| `ghostqa init` | Generate a `.ghostqa.yml` config file |
+| `ghostqa run` | Run the full testing pipeline |
+| `ghostqa run --base main` | Compare HEAD against a base ref |
+| `ghostqa view` | Open the latest HTML report |
+| `ghostqa validate` | Check your config file for errors |
+| `ghostqa doctor` | Verify dependencies (Node, Playwright, AI provider) |
+| `ghostqa record` | Record a manual browser session |
 
-```bash
-ghostqa doctor
+### Run Options
+
+```
+ghostqa run [options]
+
+  --base <ref>           Base git ref for Before/After comparison
+  --head <ref>           Head git ref (default: HEAD)
+  --diff <ref>           Git diff reference (default: HEAD~1)
+  --no-layer-a           Skip test generation
+  --no-layer-b           Skip AI exploration
+  --budget <usd>         Override max AI budget
+  -c, --config <path>    Config file path (default: .ghostqa.yml)
 ```
 
-Verifies that all dependencies are installed and configured.
+## AI Providers
 
-## Configuration
-
-### AI Providers
-
-ghostQA supports multiple AI backends:
-
-**Gemini API (default)**
+### Gemini API (default)
 
 ```yaml
 ai:
   provider: gemini
   model: gemini-2.0-flash
   api_key_env: GEMINI_API_KEY
+  max_budget_usd: 1.0
 ```
 
-**CLI Tools** - Use an already-installed CLI LLM tool as the backend. No API key needed.
+### CLI Tools (no API key needed)
+
+Use Claude Code or Codex as the AI backend. Uses your existing CLI subscription.
 
 ```yaml
 ai:
   provider: cli
   cli:
-    command: claude    # or: codex
+    command: claude     # or: codex
 ```
 
-### CLI Options
+### Task-Specific Routing
+
+Route different tasks to different providers for cost optimization:
+
+```yaml
+ai:
+  provider: gemini
+  max_budget_usd: 3.0
+  routing:
+    diff_analysis:
+      provider: cli
+      cli:
+        command: claude
+    ui_control:
+      provider: gemini
+      model: gemini-2.0-flash
+```
+
+## Output
+
+Each run creates a directory under `.ghostqa-runs/`:
 
 ```
-ghostqa run [options]
-
-Options:
-  -c, --config <path>   Config file path (default: ".ghostqa.yml")
-  --diff <ref>          Git diff reference (default: HEAD~1)
-  --no-layer-a          Skip Layer A (generated E2E tests)
-  --no-layer-b          Skip Layer B (AI exploration)
-  --budget <usd>        Override max budget in USD
+.ghostqa-runs/run-abc123/
+  report.html          Interactive HTML report (dark theme)
+  summary.json         Machine-readable results
+  screenshots/         Step-by-step + discovery screenshots
+  videos/              Full browser session recordings (.webm)
+  traces/              HAR network trace
+  generated-tests/     Playwright test files (committable)
 ```
 
-### Full Config Reference
+The HTML report includes:
+
+- **Verdict card** — PASS / FAIL / WARN with color coding
+- **Diff analysis** — what changed, what areas are impacted
+- **Layer A results** — generated test pass/fail counts with error details
+- **Layer B trace** — every exploration step with screenshots
+- **Discoveries** — each bug with severity, description, evidence screenshot, console errors
+- **Cost breakdown** — AI token usage and spend
+
+## Constraints
+
+Prevent the AI from performing dangerous actions:
+
+```yaml
+constraints:
+  no_payment: true            # Block purchase/payment actions
+  no_delete: true             # Block delete operations
+  no_external_links: true     # Stay on allowed domains
+  allowed_domains:
+    - localhost
+    - "127.0.0.1"
+  forbidden_selectors:
+    - ".admin-only"
+    - "#danger-zone"
+```
+
+## GitHub Action
+
+```yaml
+# .github/workflows/ghostqa.yml
+name: ghostQA
+on:
+  pull_request:
+
+jobs:
+  ghostqa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ghostqa/action@v0
+        with:
+          budget: "2.0"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+```
+
+The action automatically:
+- Detects the base/head refs from the PR context
+- Runs the full pipeline
+- Posts a summary comment on the PR with verdict, results, and discovery count
+
+## Full Config Reference
 
 ```yaml
 app:
-  name: my-app                    # Application name
-  root: "."                       # Project root
-  build: "npm run build"          # Build command
-  start: "npm start"              # Start command
-  url: "http://localhost:3000"    # App URL after start
+  name: my-app                     # Application name
+  root: "."                        # Project root directory
+  build: "npm run build"           # Build command
+  start: "npm start"               # Start command
+  url: "http://localhost:3000"     # App URL after start
   healthcheck:
-    path: "/"                     # Healthcheck endpoint
-    timeout: 30000                # Max wait time (ms)
-    interval: 1000                # Poll interval (ms)
+    path: "/"                      # Healthcheck endpoint
+    timeout: 30000                 # Max wait (ms)
+    interval: 1000                 # Poll interval (ms)
 
 environment:
-  mode: native                    # native or docker
-  docker:
-    image: ghostqa/runner:latest
-    volumes: []
+  mode: native                     # native or docker
 
 ai:
-  provider: gemini                # gemini or cli
+  provider: gemini                 # gemini or cli
   model: gemini-2.0-flash
-  max_budget_usd: 1.0            # Cost limit for AI calls
+  max_budget_usd: 1.0
   api_key_env: GEMINI_API_KEY
   cli:
-    command: claude               # CLI tool command
-    args: []                      # Extra arguments
+    command: claude
+    args: []
+  routing:                         # Optional: per-task provider overrides
+    diff_analysis: { ... }
+    test_generation: { ... }
+    ui_control: { ... }
+    triage: { ... }
 
 layer_a:
   enabled: true
-  max_tests: 10                   # Max generated tests
-  timeout_per_test: 30000         # Per-test timeout (ms)
+  max_tests: 10                    # Max generated tests
+  timeout_per_test: 30000          # Per-test timeout (ms)
 
 layer_b:
   enabled: true
-  max_steps: 50                   # Max exploration steps
-  max_duration: 300000            # Max exploration time (ms)
+  max_steps: 50                    # Max exploration steps
+  max_duration: 300000             # Max exploration time (ms)
   viewport:
     width: 1280
     height: 720
+
+constraints:
+  no_payment: false
+  no_delete: false
+  no_external_links: false
+  allowed_domains: []
+  forbidden_selectors: []
 
 reporter:
   output_dir: .ghostqa-runs
@@ -171,45 +311,27 @@ reporter:
   screenshots: true
 ```
 
-## Output
-
-Each run creates a directory under `.ghostqa-runs/<run-id>/` containing:
-
-```
-.ghostqa-runs/run-abc123/
-  report.html        # Interactive HTML report
-  summary.json       # Machine-readable results
-  screenshots/       # Captured screenshots
-  videos/            # Browser session recordings
-```
-
-The report includes:
-
-- **Verdict** - PASS / FAIL / WARN based on discovery severity
-- **Diff summary** - What changed and what areas are affected
-- **Layer A results** - Generated test pass/fail counts
-- **Layer B results** - Exploration steps, pages visited
-- **Discoveries** - Found issues with severity, description, screenshots, console errors, and reproduction steps
-- **Cost** - Total AI token usage and cost
-
 ## Architecture
 
 ```
 packages/
-  cli/          CLI entry point (ghostqa command)
-  core/         Business logic
-    ai/         AI provider abstraction (Gemini, CLI tools)
-    config/     YAML config + Zod validation
+  cli/               CLI entry point (6 commands)
+  core/              Business logic
+    ai/              AI provider abstraction + task routing
+    comparator/      Before/After comparison (visual + behavioral diff)
+    config/          YAML + Zod schema validation
     diff-analyzer/   Git diff parsing + LLM impact analysis
     environment/     Docker / native environment management
-    app-runner/      Build → start → healthcheck
+    app-runner/      Build -> start -> healthcheck
     layer-a/         E2E test generation + execution
-    layer-b/         AI exploration loop
-    recorder/        Video / screenshot / console capture
+    layer-b/         AI exploration loop (observe -> plan -> act -> discover)
+    recorder/        Video / screenshot / console / HAR capture
     reporter/        HTML + JSON report generation
     orchestrator/    Pipeline coordination
-  docker/       Docker runner image
-  action/       GitHub Action (planned)
+  action/            GitHub Action
+  docker/            Docker runner image
+examples/
+  demo-app/          Todo app for testing (with intentional bugs)
 ```
 
 ## License

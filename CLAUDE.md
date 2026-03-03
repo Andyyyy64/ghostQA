@@ -45,7 +45,6 @@
 - **Behavioral Diff** — console error の base/head 件数比較、delta 算出
 - **GitHub Action** — `packages/action/` に action.yml + ラッパー実装。PR コンテキスト自動検出
 - **PR コメント** — GitHub API 連携。Before/After テーブル、新規/修正イシュー表示
-- **フロー定義** — `.ghostqa.yml` の `flows` セクション対応。Layer B Planner が優先的に探索
 - **制約 (constraints)** — no_payment / no_delete / no_external_links / allowed_domains / forbidden_selectors
 - **タスク別モデルルーティング** — `ai.routing` でタスクごとに異なる AI プロバイダー設定可能
 - **`record` コマンド** — headed ブラウザで手動操作を録画
@@ -267,19 +266,6 @@ ai:
   budget:
     max_cost_usd_per_run: 5.0        # 1回の実行あたりのコスト上限
 
-# ─── フロー定義（自然言語） ───
-flows:
-  - name: "login_and_dashboard"
-    goal: "ログインしてダッシュボードが正常に表示されることを確認"
-    priority: "high"
-
-  - name: "profile_update"
-    goal: "設定画面でプロフィールの表示名を変更し、保存後に反映を確認"
-    priority: "medium"
-    credentials:
-      username_env: "TEST_USER"
-      password_env: "TEST_PASS"
-
 # ─── 制約 ───
 constraints:
   no_payment: true                   # 課金操作禁止
@@ -399,40 +385,19 @@ report:
   "verdict": "FAIL",
   "duration_s": 245,
   "cost_usd": 1.23,
-  "flows": [
-    {
-      "name": "login_and_dashboard",
-      "verdict": "PASS",
-      "layer_a": {
-        "tests_generated": 5,
-        "tests_passed": 5,
-        "tests_failed": 0
-      },
-      "layer_b": {
-        "pages_visited": 8,
-        "discoveries": 0
-      },
-      "visual_diff_percent": 0.02
-    },
-    {
-      "name": "profile_update",
-      "verdict": "FAIL",
-      "layer_a": {
-        "tests_generated": 3,
-        "tests_passed": 2,
-        "tests_failed": 1,
-        "failed_tests": ["profile_update_save_reflects_change"]
-      },
-      "layer_b": {
-        "pages_visited": 5,
-        "discoveries": 1,
-        "discovery_summaries": [
-          "保存ボタン押下後に500エラー。設定画面が無限ローディング状態に陥る"
-        ]
-      },
-      "visual_diff_percent": 12.3
-    }
-  ],
+  "layer_a": {
+    "tests_generated": 8,
+    "tests_passed": 7,
+    "tests_failed": 1,
+    "failed_tests": ["profile_update_save_reflects_change"]
+  },
+  "layer_b": {
+    "pages_visited": 13,
+    "discoveries": 1,
+    "discovery_summaries": [
+      "保存ボタン押下後に500エラー。設定画面が無限ローディング状態に陥る"
+    ]
+  },
   "total_discoveries": 1,
   "console_errors": { "base": 0, "head": 3 },
   "network_failures": { "base": 0, "head": 1 }
@@ -446,19 +411,19 @@ report:
 
 **Verdict: ❌ FAIL** | ⏱ 4m 5s | 💰 $1.23
 
-### Flows
+### Results
 
-| Flow | Layer A (テスト) | Layer B (探索) | Visual Diff | Verdict |
-|------|-----------------|---------------|-------------|---------|
-| login_and_dashboard | 5/5 ✅ | 0 issues | 0.02% | ✅ PASS |
-| profile_update | 2/3 ❌ | 1 discovery | 12.3% | ❌ FAIL |
+| Layer | Result | Verdict |
+|-------|--------|---------|
+| Layer A (テスト) | 7/8 passed | ❌ FAIL |
+| Layer B (探索) | 1 discovery | ❌ FAIL |
 
 ### ❌ Failures
 
-**profile_update > Layer A**
+**Layer A**
 `profile_update_save_reflects_change` — 保存APIが500を返却
 
-**profile_update > Layer B (discovery)**
+**Layer B (discovery)**
 保存ボタン押下後に500エラー。設定画面が無限ローディング状態に陥る
 📸 [スクショ](link) | 🎬 [動画](link) | 🔁 [再現手順](link)
 
@@ -509,8 +474,8 @@ ghostqa/
 2. 静的解析で変更された関数/コンポーネント/ルートを特定
    - TypeScript/TSX：AST解析（ts-morph等）
    - Python：AST解析（ast module）
-3. LLMに diff + プロジェクト構造 + flows を渡し、影響するフロー/画面を推定
-4. 出力：`ImpactReport`（影響フロー、影響画面、影響コンポーネント、優先度）
+3. LLMに diff + プロジェクト構造を渡し、影響する画面・コンポーネントを推定
+4. 出力：`ImpactReport`（影響画面、影響コンポーネント、優先度）
 
 ### 5.3 layer-a（テスト生成層）
 
@@ -588,7 +553,7 @@ ghostqa/
 - Markdown：PRコメント用（GitHub Actions経由）
 
 **レポートの構成：**
-1. サマリ（verdict、所要時間、コスト、フロー別結果）
+1. サマリ（verdict、所要時間、コスト、Layer A/B結果）
 2. Failures & Discoveries（失敗詳細 + 動画/スクショリンク）
 3. Visual Diff ギャラリー（before/after/diff を並べて表示）
 4. Console / Network 比較表
@@ -606,7 +571,7 @@ ghostqa/
 ghostqa init
 
 # メイン実行：base/headで検証してレポート生成
-ghostqa run [--base <ref>] [--head <ref>] [--flow <name>] [--engine docker|native]
+ghostqa run [--base <ref>] [--head <ref>] [--engine docker|native]
 
 # レポート閲覧：生成済みレポートをブラウザで開く
 ghostqa view [<run_id>]
@@ -626,7 +591,6 @@ ghostqa run
 # オプション
 --base <ref>          # 比較元（デフォルト：origin/main との merge-base）
 --head <ref>          # 比較先（デフォルト：HEAD）
---flow <name>         # 特定フローのみ実行（指定しなければ全フロー）
 --engine docker|native  # 実行環境（デフォルト：docker）
 --layer a|b|both      # 実行する層（デフォルト：both）
 --no-video            # 動画を記録しない（高速化）
@@ -820,7 +784,7 @@ npm install -g ghostqa
 # 2. 初期化
 cd my-project
 ghostqa init
-# → .ghostqa.yml が生成される（フロー定義を書き足す）
+# → .ghostqa.yml が生成される
 
 # 3. 実行
 export ANTHROPIC_API_KEY=sk-...
@@ -913,7 +877,7 @@ ghostqa run --base origin/main --head HEAD
 | **ドキュメント** | 導入ガイド（フレームワーク別：Next.js / Nuxt / Remix 等） |
 | | トラブルシューティング |
 | | Contributing ガイド |
-| **コミュニティ** | awesome-ghostqa（フロー定義のテンプレ集） |
+| **コミュニティ** | awesome-ghostqa（設定テンプレ集） |
 | | GitHub Discussions / Discord |
 
 #### v1.0 の成功基準

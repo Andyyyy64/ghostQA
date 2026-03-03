@@ -20,9 +20,6 @@ export const validateCommand = new Command("validate")
       consola.info(`  AI: ${config.ai.provider} (${config.ai.model})`);
       consola.info(`  Layer A: ${config.layer_a.enabled ? "enabled" : "disabled"}`);
       consola.info(`  Layer B: ${config.layer_b.enabled ? "enabled" : "disabled"}`);
-      if (config.flows.length > 0) {
-        consola.info(`  Flows: ${config.flows.map((f) => f.name).join(", ")}`);
-      }
       if (config.constraints.no_payment || config.constraints.no_delete || config.constraints.no_external_links) {
         const active = [];
         if (config.constraints.no_payment) active.push("no_payment");

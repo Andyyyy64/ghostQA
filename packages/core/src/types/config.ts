@@ -80,18 +80,6 @@ export const LayerBConfigSchema = z.object({
     .default({}),
 });
 
-export const FlowSchema = z.object({
-  name: z.string(),
-  goal: z.string(),
-  priority: z.enum(["high", "medium", "low"]).default("medium"),
-  credentials: z
-    .object({
-      username_env: z.string().optional(),
-      password_env: z.string().optional(),
-    })
-    .optional(),
-});
-
 export const ConstraintsConfigSchema = z.object({
   no_payment: z.boolean().default(false),
   no_delete: z.boolean().default(false),
@@ -114,7 +102,6 @@ export const GhostQAConfigSchema = z.object({
   layer_a: LayerAConfigSchema.default({}),
   layer_b: LayerBConfigSchema.default({}),
   reporter: ReporterConfigSchema.default({}),
-  flows: z.array(FlowSchema).default([]),
   constraints: ConstraintsConfigSchema.default({}),
 });
 

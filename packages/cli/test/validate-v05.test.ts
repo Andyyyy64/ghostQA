@@ -2,7 +2,6 @@
  * Validate CLI e2e test for v0.5 config fields.
  *
  * Verifies that ghostqa validate accepts configs with:
- * - flows section
  * - constraints section
  * - ai.routing section
  */
@@ -23,35 +22,6 @@ describe("ghostqa validate (v0.5 config)", () => {
 
   afterAll(() => {
     rmSync(tempDir, { recursive: true, force: true });
-  });
-
-  it("validates config with flows section", () => {
-    const config = `
-app:
-  name: test-app
-  build: "npm run build"
-  start: "npm start"
-  url: "http://localhost:3000"
-
-flows:
-  - name: login_flow
-    goal: "Log in and verify dashboard loads"
-    priority: high
-  - name: profile_update
-    goal: "Update profile name and verify save"
-    priority: medium
-    credentials:
-      username_env: TEST_USER
-      password_env: TEST_PASS
-`;
-    writeFileSync(join(tempDir, ".ghostqa.yml"), config);
-
-    const result = spawnSync("node", [CLI, "validate"], {
-      cwd: tempDir,
-      encoding: "utf-8",
-      timeout: 10_000,
-    });
-    expect(result.status).toBe(0);
   });
 
   it("validates config with constraints section", () => {
@@ -151,14 +121,6 @@ layer_b:
     width: 1440
     height: 900
 
-flows:
-  - name: checkout_flow
-    goal: "Complete a purchase flow"
-    priority: high
-  - name: search
-    goal: "Search for items and verify results"
-    priority: medium
-
 constraints:
   no_payment: true
   no_delete: true
@@ -186,26 +148,4 @@ reporter:
     expect(result.status).toBe(0);
   });
 
-  it("rejects invalid flow priority value", () => {
-    const config = `
-app:
-  name: test-app
-  build: "npm run build"
-  start: "npm start"
-  url: "http://localhost:3000"
-
-flows:
-  - name: bad_flow
-    goal: "Test something"
-    priority: urgent
-`;
-    writeFileSync(join(tempDir, ".ghostqa.yml"), config);
-
-    const result = spawnSync("node", [CLI, "validate"], {
-      cwd: tempDir,
-      encoding: "utf-8",
-      timeout: 10_000,
-    });
-    expect(result.status).toBe(1);
-  });
 });
