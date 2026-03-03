@@ -8,3 +8,5 @@ export { LayerBRunner } from "./layer-b/index";
 export { Recorder } from "./recorder/index";
 export { Reporter } from "./reporter/index";
 export { runPipeline } from "./orchestrator/run-pipeline";
+export { comparePipeline } from "./orchestrator/compare-pipeline";
+export { Comparator } from "./comparator/index";

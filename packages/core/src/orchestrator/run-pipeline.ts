@@ -22,6 +22,7 @@ export interface PipelineOptions {
 }
 
 export interface PipelineResult {
+  run_id: string;
   verdict: string;
   discoveries: Discovery[];
   cost: { total_usd: number; input_tokens: number; output_tokens: number; is_rate_limited: boolean };
@@ -87,8 +88,10 @@ export async function runPipeline(
   try {
     // 1. Diff analysis
     onProgress?.("Analyzing diff...");
+    ai.useTask("diff_analysis");
     const diffAnalyzer = new DiffAnalyzer(ai);
     const analysis = await diffAnalyzer.analyze(cwd, diffRef);
+    ai.resetTask();
     result.diff_analysis = {
       summary: analysis.summary,
       files_changed: analysis.files.length,
@@ -188,6 +191,7 @@ export async function runPipeline(
   process.removeListener("SIGTERM", onSignal);
 
   return {
+    run_id: runId,
     verdict: result.verdict,
     discoveries: result.discoveries,
     cost: result.cost,
