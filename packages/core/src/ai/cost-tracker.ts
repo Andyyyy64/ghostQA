@@ -27,6 +27,8 @@ export class CostTracker {
   private budgetUsd: number;
   /** Cost reported directly by CLI tools (e.g. claude --output-format json) */
   private reportedCostUsd = 0;
+  /** Whether this is a rate-limited CLI provider (not cost-based) */
+  public isRateLimited = false;
 
   constructor(model: string, budgetUsd: number) {
     this.model = model;
@@ -74,6 +76,7 @@ export class CostTracker {
       total_usd: this.totalCostUsd(),
       input_tokens: this.inputTokens,
       output_tokens: this.outputTokens,
+      is_rate_limited: this.isRateLimited,
     };
   }
 }

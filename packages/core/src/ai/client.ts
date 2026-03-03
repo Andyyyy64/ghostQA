@@ -11,6 +11,9 @@ export class AiClient {
   constructor(config: AiConfig) {
     this.costTracker = new CostTracker(config.model, config.max_budget_usd);
     this.provider = createProvider(config);
+    if (config.provider === "cli") {
+      this.costTracker.isRateLimited = true;
+    }
   }
 
   async chat(

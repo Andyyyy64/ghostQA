@@ -24,7 +24,7 @@ export interface PipelineOptions {
 export interface PipelineResult {
   verdict: string;
   discoveries: Discovery[];
-  cost: { total_usd: number };
+  cost: { total_usd: number; input_tokens: number; output_tokens: number; is_rate_limited: boolean };
   report_path: string;
 }
 
@@ -80,7 +80,7 @@ export async function runPipeline(
       discoveries: [],
     },
     layer_b: { steps_taken: 0, pages_visited: 0, discoveries: [] },
-    cost: { total_usd: 0, input_tokens: 0, output_tokens: 0 },
+    cost: { total_usd: 0, input_tokens: 0, output_tokens: 0, is_rate_limited: false },
     discoveries: [],
   };
 
@@ -190,7 +190,7 @@ export async function runPipeline(
   return {
     verdict: result.verdict,
     discoveries: result.discoveries,
-    cost: { total_usd: result.cost.total_usd },
+    cost: result.cost,
     report_path: reportPath,
   };
 }

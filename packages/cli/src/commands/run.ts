@@ -51,7 +51,12 @@ export const runCommand = new Command("run")
       consola.log("");
       consola.log(`${icon} Verdict: ${result.verdict.toUpperCase()}`);
       consola.log(`   Discoveries: ${result.discoveries.length}`);
-      consola.log(`   Cost: $${result.cost.total_usd.toFixed(4)}`);
+      if (result.cost.is_rate_limited) {
+        const total = result.cost.input_tokens + result.cost.output_tokens;
+        consola.log(`   Tokens: ${total.toLocaleString()} (in: ${result.cost.input_tokens.toLocaleString()} / out: ${result.cost.output_tokens.toLocaleString()})`);
+      } else {
+        consola.log(`   Cost: $${result.cost.total_usd.toFixed(4)}`);
+      }
       consola.log(`   Report: ${result.report_path}`);
       consola.log("");
 

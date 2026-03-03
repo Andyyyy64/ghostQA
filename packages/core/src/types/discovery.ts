@@ -43,6 +43,8 @@ export interface RunResult {
     total_usd: number;
     input_tokens: number;
     output_tokens: number;
+    /** true when using CLI provider (rate-limited, not cost-based) */
+    is_rate_limited: boolean;
   };
   discoveries: Discovery[];
 }
