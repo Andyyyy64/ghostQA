@@ -38,19 +38,22 @@
 - **Layer B discovery 報告** — AI が `discovery` フィールドに入れ忘れることがまれにある
 - **CLI レートリミット表示** — 現在は案内テキストのみ。将来的にプログラム的に取得できれば % 表示に対応
 
-### 未実装（v0.1 スコープ外 → v0.5 以降）
+### v0.5 で実装済み
 
-- **Before/After 比較** — base 側でのアプリ実行なし（head のみ）
-- **Visual Diff** — スクショ pixel diff / SSIM / ヒートマップ
-- **Behavioral Diff** — console/network の base/head 件数比較
-- **GitHub Action** — `packages/action/` は package.json のみのプレースホルダー
-- **PR コメント** — GitHub API 連携なし
-- **フロー定義** — `.ghostqa.yml` の `flows` セクション未対応（自由探索のみ）
-- **制約 (constraints)** — 課金操作禁止 / 削除禁止 / ドメイン制限 未実装
-- **タスク別モデルルーティング** — 全タスクが同一プロバイダー
+- **Before/After 比較** — `ghostqa run --base <ref>` で base/head 両方実行、結果比較
+- **Visual Diff** — pixelmatch ベースのスクショ比較（ヒートマップ出力）
+- **Behavioral Diff** — console error の base/head 件数比較、delta 算出
+- **GitHub Action** — `packages/action/` に action.yml + ラッパー実装。PR コンテキスト自動検出
+- **PR コメント** — GitHub API 連携。Before/After テーブル、新規/修正イシュー表示
+- **フロー定義** — `.ghostqa.yml` の `flows` セクション対応。Layer B Planner が優先的に探索
+- **制約 (constraints)** — no_payment / no_delete / no_external_links / allowed_domains / forbidden_selectors
+- **タスク別モデルルーティング** — `ai.routing` でタスクごとに異なる AI プロバイダー設定可能
+- **`record` コマンド** — headed ブラウザで手動操作を録画
+- **`validate` コマンド** — .ghostqa.yml のバリデーション + 設定サマリー表示
+
+### 未実装（v1.0 以降）
+
 - **最小再現生成** — discovery のステップ削減なし
-- **`record` コマンド** — 未実装
-- **`validate` コマンド** — 未実装
 - **単体/結合テスト生成** — Layer A は E2E テストのみ
 
 ### 技術スタック（実装済み）
@@ -73,10 +76,11 @@
 ```
 ghostqa/
 ├── packages/
-│   ├── cli/          # ghostqa コマンド（init/run/view/doctor）
+│   ├── cli/          # ghostqa コマンド（init/run/view/doctor/validate/record）
 │   ├── core/         # ビジネスロジック全体
 │   │   └── src/
-│   │       ├── ai/           # Provider パターン（Gemini / CLI）
+│   │       ├── ai/           # Provider パターン（Gemini / CLI）+ タスクルーティング
+│   │       ├── comparator/   # Before/After 比較（behavioral + visual diff）
 │   │       ├── config/       # Zod schema + YAML loader
 │   │       ├── diff-analyzer/# git diff → AI 影響推定
 │   │       ├── environment/  # Docker / native 環境管理
