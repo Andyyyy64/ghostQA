@@ -1,0 +1,46 @@
+name: "ghostQA"
+description: "AI-powered browser testing that finds bugs in your code changes"
+branding:
+  icon: "search"
+  color: "purple"
+
+inputs:
+  config:
+    description: "Path to .ghostqa.yml config file"
+    default: ".ghostqa.yml"
+  base:
+    description: "Base ref for Before/After comparison (default: auto-detect from PR)"
+    required: false
+  head:
+    description: "Head ref for comparison (default: HEAD)"
+    required: false
+    default: "HEAD"
+  budget:
+    description: "Max AI budget in USD per run"
+    required: false
+  layer-a:
+    description: "Enable Layer A (generated E2E tests)"
+    required: false
+    default: "true"
+  layer-b:
+    description: "Enable Layer B (AI exploration)"
+    required: false
+    default: "true"
+  comment:
+    description: "Post results as PR comment"
+    required: false
+    default: "true"
+
+outputs:
+  verdict:
+    description: "Test verdict: pass, warn, or fail"
+  discoveries:
+    description: "Number of discoveries found"
+  report-path:
+    description: "Path to generated HTML report"
+  cost:
+    description: "Total AI cost in USD"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"

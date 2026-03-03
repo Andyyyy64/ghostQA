@@ -2,5 +2,17 @@
   "name": "@ghostqa/action",
   "version": "0.1.0",
   "private": true,
-  "description": "GitHub Action for ghostQA (v0.5 placeholder)"
+  "description": "GitHub Action for ghostQA — AI-powered browser testing",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
+    "@ghostqa/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
+  }
 }
