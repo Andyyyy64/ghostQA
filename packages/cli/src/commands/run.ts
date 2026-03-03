@@ -52,8 +52,7 @@ export const runCommand = new Command("run")
       consola.log(`${icon} Verdict: ${result.verdict.toUpperCase()}`);
       consola.log(`   Discoveries: ${result.discoveries.length}`);
       if (result.cost.is_rate_limited) {
-        const total = result.cost.input_tokens + result.cost.output_tokens;
-        consola.log(`   Tokens: ${total.toLocaleString()} (in: ${result.cost.input_tokens.toLocaleString()} / out: ${result.cost.output_tokens.toLocaleString()})`);
+        consola.log(`   Rate limit: check claude → /usage | codex → /status`);
       } else {
         consola.log(`   Cost: $${result.cost.total_usd.toFixed(4)}`);
       }

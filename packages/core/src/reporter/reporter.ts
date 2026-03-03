@@ -136,9 +136,9 @@ export class Reporter {
         <div class="label">${result.layer_b.pages_visited} pages visited</div>
       </div>
       <div class="stat-card">
-        <div class="label">${result.cost.is_rate_limited ? "Token Usage" : "Cost"}</div>
-        <div class="value">${result.cost.is_rate_limited ? `${(result.cost.input_tokens + result.cost.output_tokens).toLocaleString()} tokens` : `$${result.cost.total_usd.toFixed(4)}`}</div>
-        <div class="label">${result.cost.is_rate_limited ? `in: ${result.cost.input_tokens.toLocaleString()} / out: ${result.cost.output_tokens.toLocaleString()}` : `${(result.cost.input_tokens + result.cost.output_tokens).toLocaleString()} tokens`}</div>
+        <div class="label">${result.cost.is_rate_limited ? "AI Usage" : "Cost"}</div>
+        <div class="value">${result.cost.is_rate_limited ? "Rate limited" : `$${result.cost.total_usd.toFixed(4)}`}</div>
+        <div class="label">${result.cost.is_rate_limited ? "claude → /usage | codex → /status" : `${(result.cost.input_tokens + result.cost.output_tokens).toLocaleString()} tokens`}</div>
       </div>
     </div>
 

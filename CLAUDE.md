@@ -26,6 +26,9 @@
 - **CLI 4コマンド** — `init` / `run` / `view` / `doctor`（Playwright ブラウザ実存チェック対応）
 - **AI プロバイダー** — Gemini API + CLI ツール（`claude -p`, `codex -q`）対応
 - **コスト管理** — BudgetExceededError で予算超過時に部分レポート生成。CLI プロバイダーは文字数ベースのトークン推定でコスト概算表示
+  - CLI プロバイダー（claude/codex）はレートリミット制。コスト表示ではなく `claude → /usage | codex → /status` への案内を表示
+  - API プロバイダー（Gemini等）は従来通り USD 表示
+  - 将来的に `/usage` `/status` の情報をプログラム的に取得できるようになれば、% 表示に対応する
 - **ガードレール** — max_steps / max_duration / ループ検出 / budget チェック
 - **SIGINT/SIGTERM** — Ctrl+C でブラウザ・アプリ・環境を安全にクリーンアップ
 
@@ -33,7 +36,7 @@
 
 - **Layer A テスト品質** — AI 生成テストの品質にばらつきがある。リトライ機構で緩和しているが、根本的には LLM の生成品質に依存
 - **Layer B discovery 報告** — AI が `discovery` フィールドに入れ忘れることがまれにある
-- **CLI コスト追跡** — 文字数からの推定のため実際のトークン数とは誤差がある（目安値）
+- **CLI レートリミット表示** — 現在は案内テキストのみ。将来的にプログラム的に取得できれば % 表示に対応
 
 ### 未実装（v0.1 スコープ外 → v0.5 以降）
 
