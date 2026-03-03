@@ -28,6 +28,7 @@ interface ClaudeJsonOutput {
  * Supported tools:
  *   claude  — Claude Code CLI (uses --output-format json for usage tracking)
  *   codex   — OpenAI Codex CLI (stdin piped to `codex -q`)
+ *   gemini  — Gemini CLI (uses --output-format json for usage tracking)
  */
 export class CliProvider implements AiProvider {
   private command: string;
@@ -107,9 +108,12 @@ export class CliProvider implements AiProvider {
 
     const raw = result.stdout.trim();
 
-    // Claude with --output-format json returns structured data with usage info
+    // Claude/Gemini with --output-format json returns structured data with usage info
     if (isClaude) {
       return this.parseClaudeJson(raw, prompt);
+    }
+    if (this.isGemini()) {
+      return this.parseGeminiJson(raw, prompt);
     }
 
     // Other CLI tools: use text output + estimation
@@ -153,9 +157,36 @@ export class CliProvider implements AiProvider {
     }
   }
 
+  private parseGeminiJson(raw: string, prompt: string): ChatResponse {
+    try {
+      const data = JSON.parse(raw);
+      const text = data.response ?? data.result ?? raw;
+
+      consola.debug(`Gemini CLI response (${String(text).length} chars)`);
+
+      return {
+        text: typeof text === "string" ? text : JSON.stringify(text),
+        inputTokens: data.usage?.input_tokens ?? estimateTokens(prompt),
+        outputTokens: data.usage?.output_tokens ?? estimateTokens(String(text)),
+      };
+    } catch {
+      consola.debug("Failed to parse Gemini CLI JSON output, falling back to text");
+      return {
+        text: raw,
+        inputTokens: estimateTokens(prompt),
+        outputTokens: estimateTokens(raw),
+      };
+    }
+  }
+
   private isClaude(): boolean {
     const cmd = this.command.split("/").pop() ?? this.command;
     return cmd === "claude";
+  }
+
+  private isGemini(): boolean {
+    const cmd = this.command.split("/").pop() ?? this.command;
+    return cmd === "gemini";
   }
 
   private resolveCommand(): string {
@@ -172,6 +203,9 @@ export class CliProvider implements AiProvider {
 
       case "codex":
         return ["-q", ...this.extraArgs];
+
+      case "gemini":
+        return ["-p", "--output-format", "json", ...this.extraArgs];
 
       default:
         return [...this.extraArgs];

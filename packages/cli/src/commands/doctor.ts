@@ -63,6 +63,16 @@ export const doctorCommand = new Command("doctor")
         required: false,
       },
       {
+        name: "ANTHROPIC_API_KEY",
+        test: () => (process.env.ANTHROPIC_API_KEY ? "set" : false),
+        required: false,
+      },
+      {
+        name: "OPENAI_API_KEY",
+        test: () => (process.env.OPENAI_API_KEY ? "set" : false),
+        required: false,
+      },
+      {
         name: "CLI: claude (Claude Code)",
         test: () => {
           const path = commandFound("claude");
@@ -74,6 +84,14 @@ export const doctorCommand = new Command("doctor")
         name: "CLI: codex (OpenAI Codex)",
         test: () => {
           const path = commandFound("codex");
+          return path ? `found (${path})` : false;
+        },
+        required: false,
+      },
+      {
+        name: "CLI: gemini (Gemini CLI)",
+        test: () => {
+          const path = commandFound("gemini");
           return path ? `found (${path})` : false;
         },
         required: false,
@@ -117,8 +135,11 @@ export const doctorCommand = new Command("doctor")
         );
         if (
           check.name.startsWith("GEMINI_API_KEY") ||
+          check.name.startsWith("ANTHROPIC_API_KEY") ||
+          check.name.startsWith("OPENAI_API_KEY") ||
           check.name.startsWith("CLI: claude") ||
-          check.name.startsWith("CLI: codex")
+          check.name.startsWith("CLI: codex") ||
+          check.name.startsWith("CLI: gemini")
         ) {
           hasAiProvider = true;
         }
@@ -132,7 +153,7 @@ export const doctorCommand = new Command("doctor")
 
     if (!hasAiProvider) {
       consola.error(
-        "No AI provider found. Set GEMINI_API_KEY or install a CLI tool (claude, codex)."
+        "No AI provider found. Set an API key (GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY) or install a CLI tool (claude, codex, gemini)."
       );
       allPassed = false;
     }

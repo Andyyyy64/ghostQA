@@ -31,9 +31,9 @@ export const EnvironmentConfigSchema = z.object({
 
 export const AiProviderConfigSchema = z.object({
   provider: z
-    .enum(["gemini", "cli"])
+    .enum(["gemini", "anthropic", "openai", "cli"])
     .default("gemini")
-    .describe("AI provider: 'gemini' for Google API, 'cli' for CLI LLM tools"),
+    .describe("AI provider: 'gemini', 'anthropic', 'openai' for APIs, 'cli' for CLI tools"),
   model: z.string().default("gemini-2.0-flash"),
   api_key_env: z.string().default("GEMINI_API_KEY"),
   cli: z
@@ -41,7 +41,7 @@ export const AiProviderConfigSchema = z.object({
       command: z
         .string()
         .default("claude")
-        .describe("CLI tool command: 'claude', 'codex', or custom path"),
+        .describe("CLI tool command: 'claude', 'codex', 'gemini', or custom path"),
       args: z
         .array(z.string())
         .default([])

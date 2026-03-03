@@ -1,5 +1,7 @@
 import type { AiProvider, ChatMessage } from "./provider";
 import { GeminiProvider } from "./gemini-provider";
+import { AnthropicProvider } from "./anthropic-provider";
+import { OpenAIProvider } from "./openai-provider";
 import { CliProvider } from "./cli-provider";
 import { CostTracker } from "./cost-tracker";
 import type { AiConfig } from "../types/config";
@@ -92,6 +94,24 @@ function createProvider(config: { provider: string; model: string; api_key_env: 
         );
       }
       return new GeminiProvider(apiKey, config.model);
+    }
+    case "anthropic": {
+      const apiKey = process.env[config.api_key_env];
+      if (!apiKey) {
+        throw new Error(
+          `API key not found. Set ${config.api_key_env} environment variable.`
+        );
+      }
+      return new AnthropicProvider(apiKey, config.model);
+    }
+    case "openai": {
+      const apiKey = process.env[config.api_key_env];
+      if (!apiKey) {
+        throw new Error(
+          `API key not found. Set ${config.api_key_env} environment variable.`
+        );
+      }
+      return new OpenAIProvider(apiKey, config.model);
     }
     case "cli": {
       return new CliProvider(config.cli.command, config.cli.args);

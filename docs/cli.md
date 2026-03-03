@@ -97,8 +97,11 @@ ghostqa doctor
 | Git | Yes | `which git` |
 | Docker | No | `docker --version` |
 | `GEMINI_API_KEY` | No* | `process.env` |
+| `ANTHROPIC_API_KEY` | No* | `process.env` |
+| `OPENAI_API_KEY` | No* | `process.env` |
 | `claude` CLI | No* | `which claude` |
 | `codex` CLI | No* | `which codex` |
+| `gemini` CLI | No* | `which gemini` |
 | Playwright browsers | No | `node -e "require('playwright').chromium.executablePath()"` |
 
 \* At least one AI provider (API key or CLI tool) is required.

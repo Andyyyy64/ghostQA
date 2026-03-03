@@ -6,7 +6,7 @@
 |----------|-------------|
 | [Architecture Overview](./architecture.md) | System design, monorepo structure, data flow, module responsibilities |
 | [Pipeline](./pipeline.md) | Step-by-step execution flow for single runs and Before/After comparisons |
-| [AI System](./ai-system.md) | Provider abstraction, Gemini/CLI backends, task routing, cost tracking, JSON parsing |
+| [AI System](./ai-system.md) | Provider abstraction, Gemini/Anthropic/OpenAI/CLI backends, task routing, cost tracking, JSON parsing |
 | [Layer A: Test Generation](./layer-a.md) | How AI generates Playwright E2E tests and how they are executed |
 | [Layer B: AI Exploration](./layer-b.md) | Observe-plan-act loop, browser navigation, discovery detection, guardrails |
 | [Comparator](./comparator.md) | Before/After comparison — discovery diff, visual diff, behavioral diff |

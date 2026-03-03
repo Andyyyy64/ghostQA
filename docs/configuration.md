@@ -56,11 +56,11 @@ AI provider and budget settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | `"gemini"` \| `"cli"` | `"gemini"` | AI backend |
+| `provider` | `"gemini"` \| `"anthropic"` \| `"openai"` \| `"cli"` | `"gemini"` | AI backend |
 | `model` | string | `"gemini-2.0-flash"` | Model name |
 | `api_key_env` | string | `"GEMINI_API_KEY"` | Environment variable for API key |
 | `max_budget_usd` | number | `1.0` | Maximum cost per run in USD |
-| `cli.command` | string | `"claude"` | CLI tool command |
+| `cli.command` | string | `"claude"` | CLI tool command (`claude`, `codex`, `gemini`, or custom) |
 | `cli.args` | string[] | `[]` | Extra arguments for CLI tool |
 | `routing` | object | `{}` | Per-task provider overrides (see below) |
 
@@ -163,6 +163,36 @@ ai:
   max_budget_usd: 2.0
 ```
 
+### Anthropic API (Claude)
+
+```yaml
+app:
+  name: my-app
+  build: "npm run build"
+  start: "npm start"
+
+ai:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key_env: ANTHROPIC_API_KEY
+  max_budget_usd: 3.0
+```
+
+### OpenAI API
+
+```yaml
+app:
+  name: my-app
+  build: "npm run build"
+  start: "npm start"
+
+ai:
+  provider: openai
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
+  max_budget_usd: 2.0
+```
+
 ### Claude CLI
 
 ```yaml
@@ -176,6 +206,21 @@ ai:
   max_budget_usd: 5.0
   cli:
     command: claude
+```
+
+### Gemini CLI
+
+```yaml
+app:
+  name: my-app
+  build: "pnpm build"
+  start: "pnpm start"
+
+ai:
+  provider: cli
+  max_budget_usd: 5.0
+  cli:
+    command: gemini
 ```
 
 ### Full Config with Constraints

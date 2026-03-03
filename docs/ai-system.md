@@ -7,8 +7,10 @@ The AI system is built on a provider abstraction that allows swapping backends w
 ```
 AiClient (facade)
   ├── AiProvider (interface)
-  │     ├── GeminiProvider  (Google Gemini API)
-  │     └── CliProvider     (claude/codex via stdin)
+  │     ├── GeminiProvider     (Google Gemini API)
+  │     ├── AnthropicProvider  (Anthropic API)
+  │     ├── OpenAIProvider     (OpenAI API)
+  │     └── CliProvider        (claude/codex/gemini via stdin)
   ├── CostTracker (budget enforcement)
   └── Task Routing (per-task provider selection)
 ```
@@ -51,6 +53,33 @@ Uses `@google/generative-ai` SDK.
 - For image inputs: prepends `inlineData` part to the last user message
 - Returns token counts from `response.usageMetadata`
 
+## AnthropicProvider
+
+**File:** `packages/core/src/ai/anthropic-provider.ts`
+
+Uses `@anthropic-ai/sdk` (Anthropic's official Node.js SDK).
+
+- Reads API key from environment variable (default: `ANTHROPIC_API_KEY`)
+- Default model: any Anthropic model string (e.g., `claude-sonnet-4-20250514`)
+- Max output tokens: 4096
+- Sends `system` as a top-level parameter (not as a message)
+- For text: maps `ChatMessage[]` directly to Anthropic message format
+- For image inputs: attaches a base64 `image` block to the last user message (supports `image/png`, `image/jpeg`, `image/webp`)
+- Returns token counts from `response.usage.input_tokens` / `output_tokens`
+
+## OpenAIProvider
+
+**File:** `packages/core/src/ai/openai-provider.ts`
+
+Uses the `openai` SDK (OpenAI's official Node.js SDK).
+
+- Reads API key from environment variable (default: `OPENAI_API_KEY`)
+- Default model: any OpenAI model string (e.g., `gpt-4o`, `gpt-4.1`)
+- Max output tokens: 4096
+- Sends `system` as a system message prepended to the messages array
+- For image inputs: attaches a `image_url` block (data URI with base64) to the last user message
+- Returns token counts from `response.usage.prompt_tokens` / `completion_tokens`
+
 ## CliProvider
 
 **File:** `packages/core/src/ai/cli-provider.ts`
@@ -63,6 +92,7 @@ Pipes prompts to CLI tools via stdin using `execa`.
 |---------|-----------|----------------|
 | `claude` | `claude -p --output-format json` | JSON: `{ result, total_cost_usd, usage }` |
 | `codex` | `codex -q` | Plain text |
+| `gemini` | `gemini -p --output-format json` | Plain text |
 | Custom | `<command> <args>` | Plain text |
 
 ### Prompt Construction
@@ -150,8 +180,10 @@ Every call automatically:
 
 | `provider` value | Created class | Requires |
 |-----------------|---------------|----------|
-| `"gemini"` | `GeminiProvider` | `api_key_env` environment variable |
-| `"cli"` | `CliProvider` | CLI tool installed (`claude`, `codex`, etc.) |
+| `"gemini"` | `GeminiProvider` | `api_key_env` environment variable (default: `GEMINI_API_KEY`) |
+| `"anthropic"` | `AnthropicProvider` | `api_key_env` environment variable (default: `ANTHROPIC_API_KEY`) |
+| `"openai"` | `OpenAIProvider` | `api_key_env` environment variable (default: `OPENAI_API_KEY`) |
+| `"cli"` | `CliProvider` | CLI tool installed (`claude`, `codex`, `gemini`, etc.) |
 
 ## Cost Tracker
 
@@ -159,12 +191,34 @@ Every call automatically:
 
 ### Pricing Table (per million tokens)
 
+**Gemini models:**
+
 | Model | Input | Output |
 |-------|-------|--------|
 | `gemini-2.0-flash` | $0.10 | $0.40 |
 | `gemini-2.5-flash-preview-05-20` | $0.15 | $0.60 |
 | `gemini-2.5-pro-preview-05-06` | $1.25 | $10.00 |
-| Default (unknown models) | $0.15 | $0.60 |
+
+**Claude models (Anthropic):**
+
+| Model | Input | Output |
+|-------|-------|--------|
+| `claude-sonnet-4-20250514` | $3.00 | $15.00 |
+| `claude-haiku-3.5` | $0.80 | $4.00 |
+| `claude-opus-4` | $15.00 | $75.00 |
+
+**OpenAI models:**
+
+| Model | Input | Output |
+|-------|-------|--------|
+| `gpt-4o` | $2.50 | $10.00 |
+| `gpt-4o-mini` | $0.15 | $0.60 |
+| `gpt-4.1` | $2.00 | $8.00 |
+| `gpt-4.1-mini` | $0.40 | $1.60 |
+| `gpt-4.1-nano` | $0.10 | $0.40 |
+| `o3-mini` | $1.10 | $4.40 |
+
+**Default:** (unknown models) | $0.15 | $0.60 |
 
 ### Methods
 
@@ -178,8 +232,8 @@ Every call automatically:
 
 ### CLI vs API Cost Display
 
-- **API providers** (Gemini): show USD cost calculated from tokens
-- **CLI providers** (claude/codex): set `isRateLimited = true`, display guidance text ("check claude -> /usage") instead of cost
+- **API providers** (Gemini, Anthropic, OpenAI): show USD cost calculated from tokens
+- **CLI providers** (claude/codex/gemini): set `isRateLimited = true`, display guidance text ("check claude -> /usage") instead of cost
 
 ## JSON Parsing
 

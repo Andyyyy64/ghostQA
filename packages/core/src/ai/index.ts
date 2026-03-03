@@ -2,5 +2,7 @@ export { AiClient } from "./client";
 export { CostTracker, BudgetExceededError } from "./cost-tracker";
 export type { AiProvider, ChatMessage, ChatResponse } from "./provider";
 export { GeminiProvider } from "./gemini-provider";
+export { AnthropicProvider } from "./anthropic-provider";
+export { OpenAIProvider } from "./openai-provider";
 export { CliProvider } from "./cli-provider";
 export { extractJson } from "./parse-json";

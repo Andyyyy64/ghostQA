@@ -2,9 +2,21 @@ import consola from "consola";
 
 // Pricing per million tokens (for API-based providers)
 const PRICING: Record<string, { input: number; output: number }> = {
+  // Gemini
   "gemini-2.0-flash": { input: 0.10, output: 0.40 },
   "gemini-2.5-flash-preview-05-20": { input: 0.15, output: 0.60 },
   "gemini-2.5-pro-preview-05-06": { input: 1.25, output: 10.0 },
+  // Anthropic
+  "claude-sonnet-4-20250514": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-20250414": { input: 0.80, output: 4.0 },
+  "claude-opus-4-20250514": { input: 15.0, output: 75.0 },
+  // OpenAI
+  "gpt-4o": { input: 2.50, output: 10.0 },
+  "gpt-4o-mini": { input: 0.15, output: 0.60 },
+  "gpt-4.1": { input: 2.0, output: 8.0 },
+  "gpt-4.1-mini": { input: 0.40, output: 1.60 },
+  "gpt-4.1-nano": { input: 0.10, output: 0.40 },
+  "o3-mini": { input: 1.10, output: 4.40 },
   default: { input: 0.15, output: 0.60 },
 };
 

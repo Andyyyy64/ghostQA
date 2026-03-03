@@ -53,13 +53,15 @@ packages/core/src/
 │   └── comparison.ts     # ComparisonResult, BehavioralDiff, VisualDiffEntry
 ├── config/               # YAML config loading + validation
 │   └── loader.ts         # loadConfig(), generateConfig(), configExists()
-├── ai/                   # AI provider abstraction
-│   ├── provider.ts       # AiProvider interface
-│   ├── gemini-provider.ts# Google Gemini API implementation
-│   ├── cli-provider.ts   # CLI tool (claude/codex) implementation
-│   ├── client.ts         # AiClient facade with task routing
-│   ├── cost-tracker.ts   # Token counting + budget enforcement
-│   └── parse-json.ts     # 3-tier JSON extraction from LLM output
+├── ai/                       # AI provider abstraction
+│   ├── provider.ts           # AiProvider interface
+│   ├── gemini-provider.ts    # Google Gemini API implementation
+│   ├── anthropic-provider.ts # Anthropic API implementation (@anthropic-ai/sdk)
+│   ├── openai-provider.ts    # OpenAI API implementation (openai SDK)
+│   ├── cli-provider.ts       # CLI tool (claude/codex/gemini) implementation
+│   ├── client.ts             # AiClient facade with task routing
+│   ├── cost-tracker.ts       # Token counting + budget enforcement
+│   └── parse-json.ts         # 3-tier JSON extraction from LLM output
 ├── diff-analyzer/        # Git diff parsing + AI impact analysis
 │   ├── parser.ts         # Pure diff text parser
 │   └── analyzer.ts       # AI-powered impact estimation
@@ -142,7 +144,7 @@ There are no hardcoded "flows" or test scenarios. The AI reads the actual git di
 
 ### Provider Abstraction
 
-The `AiProvider` interface allows swapping AI backends without changing business logic. Currently implemented: Google Gemini (API) and CLI tools (claude/codex via stdin pipe). Task routing lets you use different providers for different pipeline stages.
+The `AiProvider` interface allows swapping AI backends without changing business logic. Currently implemented: Google Gemini (API), Anthropic (API via `@anthropic-ai/sdk`), OpenAI (API via `openai` SDK), and CLI tools (claude/codex/gemini via stdin pipe). Task routing lets you use different providers for different pipeline stages.
 
 ### AX Tree over DOM
 
