@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ghostqa/core": "workspace:*",
@@ -17,7 +18,8 @@
     "ora": "^8.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "tsup": "^8.3.0"
+    "playwright": "^1.49.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0"
   }
 }

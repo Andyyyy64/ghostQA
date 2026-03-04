@@ -6,7 +6,7 @@
     "build": "pnpm -r run build",
     "dev": "pnpm -r run dev",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "pnpm -r run typecheck"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
