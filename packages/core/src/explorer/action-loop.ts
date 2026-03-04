@@ -102,8 +102,16 @@ export class Explorer {
       }
 
       if (plan.done) {
-        consola.info("AI exploration complete (AI decided to stop)");
-        break;
+        // Check if there are untested interactive elements
+        const untested = await this.getUntestedElements(page, guardrails.testedSelectors);
+        if (untested.length > 0 && guardrails.stats.steps_taken < this.config.explorer.max_steps - 5) {
+          consola.info(`AI wanted to stop, but ${untested.length} untested elements remain: ${untested.slice(0, 5).join(", ")}`);
+          // Override done — inject hint into next plan
+          lastActionError = `DO NOT STOP. You have NOT tested these interactive elements yet: ${untested.join(", ")}. Test them before setting done=true.`;
+        } else {
+          consola.info("AI exploration complete (AI decided to stop)");
+          break;
+        }
       }
 
       // Act
@@ -130,6 +138,32 @@ export class Explorer {
       pages_visited: stats.pages_visited,
       discoveries,
     };
+  }
+
+  /**
+   * Query the live page for interactive elements not yet tested.
+   */
+  private async getUntestedElements(page: Page, testedSelectors: Set<string>): Promise<string[]> {
+    const elements = await page.evaluate(() => {
+      const interactive = document.querySelectorAll(
+        "button, a[href], input, select, textarea, [role='button'], [role='checkbox'], [role='tab'], [role='link'], [role='menuitem']"
+      );
+      return Array.from(interactive)
+        .map(el => {
+          const tag = el.tagName.toLowerCase();
+          const text = (el.textContent || "").trim().slice(0, 50);
+          const role = el.getAttribute("role") || tag;
+          return { role, text };
+        })
+        .filter(e => e.text.length > 0);
+    });
+
+    return elements
+      .filter(e => {
+        const lower = e.text.toLowerCase();
+        return ![...testedSelectors].some(s => s.includes(lower) || lower.includes(s));
+      })
+      .map(e => `${e.role} "${e.text}"`);
   }
 
   /**

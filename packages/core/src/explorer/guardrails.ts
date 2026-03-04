@@ -7,6 +7,7 @@ export class Guardrails {
   private startTime: number;
   private visitedUrls = new Set<string>();
   private recentActions: string[] = [];
+  public testedSelectors = new Set<string>();
 
   constructor(
     private config: ExplorerConfig,
@@ -22,6 +23,9 @@ export class Guardrails {
     if (this.recentActions.length > 10) {
       this.recentActions.shift();
     }
+    // Track selector for coverage
+    const selector = action.split(":").slice(1).join(":");
+    if (selector) this.testedSelectors.add(selector.toLowerCase());
   }
 
   shouldStop(): { stop: boolean; reason?: string } {
