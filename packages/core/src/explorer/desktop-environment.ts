@@ -132,7 +132,7 @@ export class DesktopEnvironment {
     const { readFile, rm } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
 
-    const tmpPath = join(tmpdir(), \`ghostqa-scrot-\${Date.now()}.png\`);
+    const tmpPath = join(tmpdir(), `ghostqa-scrot-${Date.now()}.png`);
     const env = { ...process.env, DISPLAY: this.config.display };
     await execa("scrot", [tmpPath], { env });
     try {
