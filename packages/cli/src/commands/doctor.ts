@@ -97,6 +97,38 @@ export const doctorCommand = new Command("doctor")
         required: false,
       },
       {
+        name: "Desktop: xdotool",
+        test: () => {
+          const path = commandFound("xdotool");
+          return path ? `found (${path})` : false;
+        },
+        required: false,
+      },
+      {
+        name: "Desktop: scrot",
+        test: () => {
+          const path = commandFound("scrot");
+          return path ? `found (${path})` : false;
+        },
+        required: false,
+      },
+      {
+        name: "Desktop: Xvfb",
+        test: () => {
+          const path = commandFound("Xvfb");
+          return path ? `found (${path})` : false;
+        },
+        required: false,
+      },
+      {
+        name: "Desktop: ffmpeg",
+        test: () => {
+          const v = getVersion("ffmpeg");
+          return v || false;
+        },
+        required: false,
+      },
+      {
         name: "Playwright browsers",
         test: () => {
           try {

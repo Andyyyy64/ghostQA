@@ -105,39 +105,91 @@ export async function runPipeline(
     await appRunner.start(cwd);
 
     try {
-      // 4. Launch browser
-      onProgress?.("Launching browser...");
-      const browser = await chromium.launch({ headless: true });
-      activeBrowser = browser;
+      if (config.explorer.enabled && analysis.impact_areas.length > 0) {
+        if (config.explorer.mode === "desktop") {
+          // Desktop mode — use xdotool/scrot based exploration
+          onProgress?.("Launching desktop exploration...");
+          const { DesktopEnvironment } = await import("../explorer/desktop-environment");
+          const { DesktopObserver } = await import("../explorer/desktop-observer");
+          const { DesktopNavigator } = await import("../explorer/desktop-navigator");
+          const { DesktopRecorder } = await import("../recorder/desktop-recorder");
 
-      const context = await browser.newContext({
-        viewport: config.explorer.viewport,
-        ...recorder.contextOptions(),
-      });
-      activeContext = context;
+          const desktopConfig = config.explorer.desktop;
+          const desktopEnv = new DesktopEnvironment({
+            display: desktopConfig.display,
+            appCommand: desktopConfig.app_command,
+            windowName: desktopConfig.window_name,
+            windowTimeout: desktopConfig.window_timeout,
+          });
 
-      const page = await context.newPage();
+          await desktopEnv.launchApp(cwd);
+          await desktopEnv.waitForWindow();
 
-      try {
-        // 5. AI Exploration
-        if (config.explorer.enabled && analysis.impact_areas.length > 0) {
-          onProgress?.("Exploring...");
+          const desktopRecorder = new DesktopRecorder(
+            desktopConfig.display,
+            outputDir,
+            config.explorer.viewport
+          );
+          await desktopRecorder.startRecording();
+
+          const desktopObserver = new DesktopObserver(desktopEnv, outputDir, config.explorer.viewport);
+          const desktopNavigator = new DesktopNavigator(desktopConfig.display);
+
           const explorer = new Explorer(ai, config, recorder);
-          const explorerResult = await explorer.run(page, analysis, onProgress);
+
+          let explorerResult;
+          if (config.ai.provider === "anthropic") {
+            explorerResult = await explorer.runAnthropicDesktop(
+              desktopObserver, desktopNavigator, analysis, onProgress
+            );
+          } else {
+            explorerResult = await explorer.runGenericDesktop(
+              desktopObserver, desktopNavigator, analysis, onProgress
+            );
+          }
+
+          await desktopRecorder.stopRecording();
+          await desktopEnv.stop();
+
           result.explorer = {
             steps_taken: explorerResult.steps_taken,
             pages_visited: explorerResult.pages_visited,
             discoveries: explorerResult.discoveries,
           };
           result.discoveries.push(...explorerResult.discoveries);
-        }
-      } finally {
-        activeContext = null;
-        activeBrowser = null;
-        await context.close();
-        await browser.close();
-        if (config.reporter.video) {
-          consola.info("Video saved to run output directory");
+        } else {
+          // Web mode (default) — Playwright
+          onProgress?.("Launching browser...");
+          const browser = await chromium.launch({ headless: true });
+          activeBrowser = browser;
+
+          const context = await browser.newContext({
+            viewport: config.explorer.viewport,
+            ...recorder.contextOptions(),
+          });
+          activeContext = context;
+
+          const page = await context.newPage();
+
+          try {
+            onProgress?.("Exploring...");
+            const explorer = new Explorer(ai, config, recorder);
+            const explorerResult = await explorer.run(page, analysis, onProgress);
+            result.explorer = {
+              steps_taken: explorerResult.steps_taken,
+              pages_visited: explorerResult.pages_visited,
+              discoveries: explorerResult.discoveries,
+            };
+            result.discoveries.push(...explorerResult.discoveries);
+          } finally {
+            activeContext = null;
+            activeBrowser = null;
+            await context.close();
+            await browser.close();
+            if (config.reporter.video) {
+              consola.info("Video saved to run output directory");
+            }
+          }
         }
       }
     } finally {

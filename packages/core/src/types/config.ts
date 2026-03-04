@@ -62,8 +62,16 @@ export const AiConfigSchema = AiProviderConfigSchema.extend({
     .default({}),
 });
 
+export const DesktopConfigSchema = z.object({
+  display: z.string().default(":99"),
+  app_command: z.string().default(""),
+  window_name: z.string().optional(),
+  window_timeout: z.number().default(30000),
+});
+
 export const ExplorerConfigSchema = z.object({
   enabled: z.boolean().default(true),
+  mode: z.enum(["web", "desktop", "auto"]).default("web"),
   max_steps: z.number().default(50),
   max_duration: z.number().default(300000).describe("Max duration in ms"),
   viewport: z
@@ -72,6 +80,7 @@ export const ExplorerConfigSchema = z.object({
       height: z.number().default(720),
     })
     .default({}),
+  desktop: DesktopConfigSchema.default({}),
 });
 
 export const ConstraintsConfigSchema = z.object({
@@ -103,4 +112,5 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;
 export type AiConfig = z.infer<typeof AiConfigSchema>;
 export type ExplorerConfig = z.infer<typeof ExplorerConfigSchema>;
+export type DesktopConfig = z.infer<typeof DesktopConfigSchema>;
 export type ReporterConfig = z.infer<typeof ReporterConfigSchema>;

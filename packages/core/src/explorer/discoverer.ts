@@ -1,6 +1,22 @@
 import { nanoid } from "nanoid";
 import type { Discovery } from "../types/discovery";
 import type { PageState } from "./observer";
+import type { DisplayState } from "./types";
+
+const PROCESS_CRITICAL_PATTERNS = [
+  /segmentation\s+fault/i,
+  /core\s+dumped/i,
+  /\bFATAL\b/,
+  /\bpanic\b/i,
+  /\babort(?:ed)?\b/i,
+  /\bcrash(?:ed)?\b/i,
+];
+
+const PROCESS_ANY_ERROR_PATTERNS = [
+  /\berror\b/i,
+  /\bexception\b/i,
+  /\bfailed\b/i,
+];
 
 const ERROR_PATTERNS = [
   /uncaught\s+(?:type|reference|syntax|range)error/i,
@@ -66,6 +82,36 @@ export class Discoverer {
     };
   }
 
+  /** Detect errors from desktop process logs (stderr patterns) */
+  detectFromLogs(state: DisplayState): Discovery[] {
+    const discoveries: Discovery[] = [];
+
+    for (const log of state.logs) {
+      const isStderr = log.startsWith("[stderr]");
+
+      const hasCritical = PROCESS_CRITICAL_PATTERNS.some((p) => p.test(log));
+      const hasError =
+        isStderr && PROCESS_ANY_ERROR_PATTERNS.some((p) => p.test(log));
+      const hasAnyError =
+        !isStderr && PROCESS_ANY_ERROR_PATTERNS.some((p) => p.test(log));
+
+      if (!hasError && !hasCritical && !hasAnyError) continue;
+
+      discoveries.push({
+        id: `process-${nanoid(8)}`,
+        source: "explorer",
+        severity: hasCritical ? "critical" : "medium",
+        title: `Process error in ${state.identifier}`,
+        description: log.slice(0, 500),
+        url: state.identifier,
+        console_errors: [log],
+        timestamp: state.timestamp,
+      });
+    }
+
+    return discoveries;
+  }
+
   /** Check if a discovery is a duplicate of an existing one */
   isDuplicate(candidate: Discovery, existing: Discovery[]): boolean {
     const candidateTitle = candidate.title.toLowerCase();
@@ -99,12 +145,10 @@ export class Discoverer {
       }
 
       // Cross-source dedup: console error message appears in AI discovery title/description
-      // e.g. console "[pageerror] remov is not defined" vs AI "Delete button: 'remov is not defined'"
       const consoleErrors = candidate.console_errors ?? d.console_errors;
       if (consoleErrors) {
         const otherText = candidate.console_errors ? (title + " " + desc) : (candidateTitle + " " + candidateDesc);
         for (const err of consoleErrors) {
-          // Extract the core error message (strip [error]/[pageerror] prefix)
           const core = err.replace(/^\[(error|pageerror)\]\s*/i, "").toLowerCase();
           if (core.length > 5 && otherText.includes(core)) return true;
         }
@@ -114,7 +158,6 @@ export class Discoverer {
       if (candidateDesc.length > 20 && desc.length > 20) {
         const shortDesc = candidateDesc.length < desc.length ? candidateDesc : desc;
         const longDesc = candidateDesc.length < desc.length ? desc : candidateDesc;
-        // Extract first sentence as the "core" of the description
         const core = shortDesc.split(/[.!]\s/)[0];
         if (core.length > 20 && longDesc.includes(core)) return true;
       }

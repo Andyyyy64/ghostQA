@@ -1,0 +1,17 @@
+FROM ghostqa/runner:latest
+
+# Install desktop automation tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xdotool \
+    scrot \
+    wmctrl \
+    x11-utils \
+    openbox \
+    # Electron/GTK/Qt dependencies
+    libgtk-3-0 \
+    libnotify4 \
+    libxss1 \
+    libxtst6 \
+    dbus-x11 \
+    at-spi2-core \
+    && rm -rf /var/lib/apt/lists/*

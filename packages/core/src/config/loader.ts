@@ -37,12 +37,19 @@ ai:
   #   args: []
 
 explorer:
+  mode: web         # web | desktop | auto
   enabled: true
   max_steps: 50
   max_duration: 300000
   viewport:
     width: 1280
     height: 720
+  # Desktop mode settings (only used when mode: desktop)
+  # desktop:
+  #   display: ":99"
+  #   app_command: "electron ."
+  #   window_name: "My App"
+  #   window_timeout: 30000
 
 reporter:
   output_dir: .ghostqa-runs
