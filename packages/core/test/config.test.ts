@@ -40,7 +40,7 @@ describe("config", () => {
       await generateConfig(tmpDir);
       const config = await loadConfig(tmpDir);
       expect(config.app.name).toBe("my-app");
-      expect(config.ai.provider).toBe("gemini");
+      expect(config.ai.provider).toBe("cli");
       expect(config.explorer.enabled).toBe(true);
     });
   });

@@ -42,7 +42,7 @@ describe("Navigator constraints", () => {
     await nav.execute(mockPage(), { action: "click", selector: ".safe-button" });
   });
 
-  it("blocks payment actions when no_payment=true", async () => {
+  it("does not block payment selectors (enforced via AI prompt, not regex)", async () => {
     const nav = new Navigator({
       no_payment: true,
       no_delete: false,
@@ -51,19 +51,13 @@ describe("Navigator constraints", () => {
       forbidden_selectors: [],
     });
 
-    await expect(
-      nav.execute(mockPage(), { action: "click", selector: "text=Purchase Now" })
-    ).rejects.toThrow("payment action blocked");
-
-    await expect(
-      nav.execute(mockPage(), { action: "click", selector: "[data-action=checkout]" })
-    ).rejects.toThrow("payment action blocked");
-
-    // Non-payment selector should be allowed
+    // no_payment is now AI-prompt-enforced, so these should NOT throw
+    await nav.execute(mockPage(), { action: "click", selector: "text=Purchase Now" });
+    await nav.execute(mockPage(), { action: "click", selector: "[data-action=checkout]" });
     await nav.execute(mockPage(), { action: "click", selector: "text=Submit" });
   });
 
-  it("blocks delete actions when no_delete=true", async () => {
+  it("does not block delete selectors (enforced via AI prompt, not regex)", async () => {
     const nav = new Navigator({
       no_payment: false,
       no_delete: true,
@@ -72,13 +66,9 @@ describe("Navigator constraints", () => {
       forbidden_selectors: [],
     });
 
-    await expect(
-      nav.execute(mockPage(), { action: "click", selector: "text=Delete Account" })
-    ).rejects.toThrow("delete action blocked");
-
-    await expect(
-      nav.execute(mockPage(), { action: "click", selector: ".remove-item" })
-    ).rejects.toThrow("delete action blocked");
+    // no_delete is now AI-prompt-enforced, so these should NOT throw
+    await nav.execute(mockPage(), { action: "click", selector: "text=Delete Account" });
+    await nav.execute(mockPage(), { action: "click", selector: ".remove-item" });
   });
 
   it("blocks external navigation when no_external_links=true", async () => {
