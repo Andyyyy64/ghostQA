@@ -6,7 +6,7 @@
 
 ## 0. 現在の実装ステータス（v0.1 進捗）
 
-> 最終更新: 2026-03-03
+> 最終更新: 2026-03-04
 
 ### 動作確認済み（実際のデモで検証）
 
@@ -48,16 +48,32 @@
 - **`record` コマンド** — headed ブラウザで手動操作を録画
 - **`validate` コマンド** — .ghostqa.yml のバリデーション + 設定サマリー表示
 
+### v1.0 で実装済み
+
+- **プロバイダー拡充** — Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。主要3社（Anthropic / OpenAI / Google）の API + CLI を全カバー
+- **computer-use バックエンド** — Desktop GUI アプリ対応（Electron / GTK / Qt / 任意の Linux GUI）
+  - 3つの探索パス: Web (Playwright) / Desktop + Anthropic (native computer_20251124) / Desktop + Generic (座標 JSON)
+  - `IObserver` / `INavigator` 抽象インターフェースで Web と Desktop を切り替え可能
+  - `DesktopEnvironment`: xdotool/scrot でアプリ管理・スクショ・座標クリック
+  - `AnthropicComputerUseProvider`: native tool-use ループ（スクショ → アクション → スクショ）
+  - `DesktopPlanner`: 汎用 AI プロバイダー用の座標ベースプランナー
+  - `DesktopRecorder`: ffmpeg x11grab で Xvfb 録画
+  - スクリーンショットスケーリング（Anthropic API 制限: max 1568px / ~1.15MP）
+  - process stderr パターンマッチ（segfault / crash / panic / FATAL → discovery 生成）
+  - Config: `explorer.mode` (web|desktop|auto) + `explorer.desktop` セクション
+  - Pipeline: desktop ブランチ（アプリ起動 → ウィンドウ検出 → 録画 → 探索）
+  - Doctor: xdotool / scrot / Xvfb / ffmpeg 依存チェック
+  - Docker: openbox ウィンドウマネージャ対応（`Dockerfile.desktop`）
+  - テスト: 188 テスト全 pass（desktop 関連 108 テスト追加）
+
 ### 未実装（v1.0 ロードマップ — 優先順）
 
 | 優先度 | 項目 | 概要 |
 |--------|------|------|
-| 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。現状 Gemini API + CLI (claude/codex) のみ → 主要3社 API + CLI を全カバー |
-| 2 | **computer-use バックエンド** | Web 以外の GUI アプリ対応（CLI / Electron / Tauri）。ghostQA on ghostQA のドッグフーディング |
-| 3 | **決定論リプレイモード** | Explorer の発見を Playwright テストに固定化。発見→テスト資産化 |
-| 4 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
-| 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、CI での継続比較基準にする |
-| 6 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
+| 1 | **決定論リプレイモード** | Explorer の発見を Playwright テストに固定化。発見→テスト資産化 |
+| 2 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
+| 3 | **Baseline 管理** | 承認済み Artifact Pack を保存し、CI での継続比較基準にする |
+| 4 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
 | 並行 | **自プロジェクトのテスト強化** | Explorer 周りのカバレッジ改善。リファクタ耐性 |
 
 **スコープ外（やらない）:**
@@ -72,9 +88,10 @@
 | 言語 | TypeScript + Node.js v22 |
 | パッケージマネージャ | pnpm v9 (workspace monorepo) |
 | CLI | commander.js |
-| AI (API) | @google/generative-ai (Gemini) |
-| AI (CLI) | claude -p / codex -q (stdin pipe) |
+| AI (API) | @google/generative-ai (Gemini), @anthropic-ai/sdk (Claude), openai (GPT) |
+| AI (CLI) | claude -p / codex -q / gemini (stdin pipe) |
 | ブラウザ | Playwright (Chromium, headless) |
+| Desktop | xdotool (座標操作), scrot (スクショ), ffmpeg (録画), Xvfb (仮想ディスプレイ) |
 | Config | yaml + zod |
 | ビルド | tsup (esbuild) |
 | ログ | consola |
@@ -88,51 +105,47 @@ ghostqa/
 │   ├── cli/          # ghostqa コマンド（init/run/view/doctor/validate/record）
 │   ├── core/         # ビジネスロジック全体
 │   │   └── src/
-│   │       ├── ai/           # Provider パターン（Gemini / CLI）+ タスクルーティング
+│   │       ├── ai/           # Provider パターン（Gemini / Anthropic / OpenAI / CLI）+ タスクルーティング + Anthropic Computer Use
 │   │       ├── comparator/   # Before/After 比較（behavioral + visual diff）
 │   │       ├── config/       # Zod schema + YAML loader
 │   │       ├── diff-analyzer/# git diff → AI 影響推定
 │   │       ├── environment/  # Docker / native 環境管理
 │   │       ├── app-runner/   # build → start → healthcheck
-│   │       ├── explorer/      # AI 探索ループ
-│   │       ├── recorder/     # 動画 / スクショ / console / HAR
+│   │       ├── explorer/      # AI 探索ループ（Web: Playwright / Desktop: xdotool+scrot）
+│   │       ├── recorder/     # 動画 / スクショ / console / HAR / Desktop録画 (ffmpeg)
 │   │       ├── reporter/     # HTML / JSON レポート生成
 │   │       ├── orchestrator/ # run-pipeline.ts（全体制御）
 │   │       └── types/        # 共有型定義
-│   ├── docker/       # Dockerfile + entrypoint.sh
+│   ├── docker/       # Dockerfile + Dockerfile.desktop + entrypoint.sh
 │   └── action/       # GitHub Action（プレースホルダー）
 └── examples/
     └── demo-app/     # Todo アプリ（動作検証用）
 ```
 
-### GUI 操作のアーキテクチャ方針
+### GUI 操作のアーキテクチャ（実装済み）
 
 ghostQA は Web QA 専用ツールではなく、**あらゆる GUI アプリのバグを AI が自動で狩るツール**。
-Web は現在の主戦場だが、デスクトップアプリ（Electron / Tauri / ネイティブ）も将来スコープに入る。
 
-**ハイブリッド方式を採用する:**
+**ハイブリッド方式（実装済み）:**
 
-| 対象 | 操作方式 | 環境 |
-|------|---------|------|
-| Web アプリ | Playwright API（DOM セレクタ + AXツリー） | headless Chromium (native) |
-| デスクトップアプリ | computer-use（スクショ → 座標クリック） | VM + Xvfb (docker/vm) |
+| 対象 | 操作方式 | 環境 | 探索パス |
+|------|---------|------|---------|
+| Web アプリ | Playwright API（DOM セレクタ + AXツリー） | headless Chromium (native) | `Explorer.run()` |
+| Desktop + Anthropic | native computer_20251124 ツール | Xvfb + xdotool + scrot | `Explorer.runAnthropicDesktop()` |
+| Desktop + 汎用AI | 座標ベース JSON レスポンス | Xvfb + xdotool + scrot | `Explorer.runGenericDesktop()` |
 
 - Web は Playwright の方が速く・正確・トークン効率が良い（AXツリーはスクショより軽い）
-- 非 Web は Cursor Cloud Agent と同様の VM + computer-use API アプローチ
-- `engine.mode` で切り替え: `native`（Playwright）/ `vm`（computer-use）
+- Desktop は `IObserver` / `INavigator` 抽象インターフェースで Web と切り替え可能
+- `explorer.mode` で切り替え: `web`（Playwright）/ `desktop`（xdotool+scrot）/ `auto`
 
 **モード判定:**
-- `.ghostqa.yml` で `engine.mode` を明示指定していればそれに従う
-- 未指定 or `auto` の場合、LLM がプロジェクト構成（ファイル一覧・package.json・設定ファイル等）を見て判定
-- ルールベースのヒューリスティクスは使わない。プロジェクト構成は無限にパターンがあるので LLM に任せる
-- diff 解析の前段で `project-analyzer` ステップとして実行
+- `.ghostqa.yml` で `explorer.mode` を明示指定していればそれに従う
+- `auto` の場合、将来的に LLM がプロジェクト構成を見て判定（未実装）
 
-**実装方針:**
-- Explorer の `observer` / `navigator` を抽象化し、Playwright 実装と computer-use 実装を差し替え可能にする
-- v0.1: Playwright のみ（現状）
-- v1.0: computer-use バックエンド追加、Electron / Tauri 対応、LLM モード判定
-
-**参考:** [Cursor Agent Computer Use](https://cursor.com/ja/blog/agent-computer-use) — フル VM 内でエージェントがデスクトップ操作、動画証拠生成、self-validation ループ
+**アクション体系:**
+- `WebAction`（selector ベース）: click, type, scroll, wait, back, goto, select, hover
+- `DesktopAction`（座標ベース）: left_click, right_click, double_click, type, key, scroll, wait, screenshot
+- discriminated union (`kind: "web" | "desktop"`) で型安全に分離
 
 ### v0.1 成功基準の達成状況
 
@@ -651,20 +664,12 @@ ai:
     command: claude                   # claude | codex
 ```
 
-### 9.2 v1.0 で追加するプロバイダー
-
-| プロバイダー | 種別 | 方式 |
-|-------------|------|------|
-| Anthropic (Claude) | API | `@anthropic-ai/sdk` 直接呼び出し |
-| OpenAI | API | `openai` SDK 直接呼び出し |
-| Gemini CLI | CLI | `gemini` コマンドを stdin pipe |
-
-**v1.0 完了後のプロバイダー全体像:**
+### 9.2 プロバイダー全体像（実装済み）
 
 | 種別 | Anthropic | OpenAI | Google |
 |------|-----------|--------|--------|
-| API | `anthropic` | `openai` | `gemini`（実装済み） |
-| CLI | `claude -p`（実装済み） | `codex -q`（実装済み） | `gemini`（v1.0） |
+| API | `anthropic` ✅ | `openai` ✅ | `gemini` ✅ |
+| CLI | `claude -p` ✅ | `codex -q` ✅ | `gemini` ✅ |
 
 ### 9.3 タスク別ルーティング（実装済み）
 
@@ -813,17 +818,22 @@ ghostqa run --base origin/main --head HEAD
 
 > **ゴール：Web 以外の GUI アプリにも対応し、OSS として成熟。コミュニティが使い始める品質。**
 
-#### v0.5 → v1.0 で追加するもの（優先順）
+#### v0.5 → v1.0 で追加したもの（実装済み）
+
+| 項目 | 状態 | 内容 |
+|------|------|------|
+| **プロバイダー拡充** | ✅ 完了 | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。主要3社 API + CLI 全カバー |
+| **computer-use バックエンド** | ✅ 完了 | xdotool/scrot で任意の Linux GUI アプリを操作。IObserver/INavigator 抽象化、Anthropic native + 汎用 JSON の2パス。188テスト pass |
+| **テスト強化** | ✅ 完了 | desktop 関連 108 テスト追加、全 188 テスト pass |
+
+#### 残りの v1.0 項目（優先順）
 
 | 優先度 | 項目 | 内容 |
 |--------|------|------|
-| 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。主要3社（Anthropic / OpenAI / Google）の API + CLI を全カバー |
-| 2 | **computer-use バックエンド** | スクショ → 座標クリックで任意の GUI アプリを操作。Explorer の observer/navigator を抽象化し、Playwright 実装と computer-use 実装を差し替え可能に。ghostQA 自身の CLI を ghostQA でテストするドッグフーディング |
-| 3 | **決定論リプレイモード** | Explorer の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
-| 4 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
-| 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、次回比較の基準にする |
-| 6 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
-| 並行 | **テスト強化** | Explorer 周りのユニットテスト・E2E テスト拡充 |
+| 1 | **決定論リプレイモード** | Explorer の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
+| 2 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
+| 3 | **Baseline 管理** | 承認済み Artifact Pack を保存し、次回比較の基準にする |
+| 4 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
 
 #### スコープ外（やらない）
 
