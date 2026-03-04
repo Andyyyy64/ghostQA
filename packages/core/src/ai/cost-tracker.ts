@@ -63,6 +63,7 @@ export class CostTracker {
   }
 
   checkBudget(): void {
+    if (this.isRateLimited) return;
     const cost = this.totalCostUsd();
     if (cost >= this.budgetUsd) {
       throw new BudgetExceededError(cost, this.budgetUsd);

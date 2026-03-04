@@ -9,9 +9,9 @@ export class AppRunner {
 
   async build(cwd: string): Promise<void> {
     consola.info(`Building: ${this.config.build}`);
-    const [cmd, ...args] = this.config.build.split(/\s+/);
-    await execa(cmd, args, {
+    await execa(this.config.build, {
       cwd,
+      shell: true,
       stdio: "pipe",
       env: { ...process.env, NODE_ENV: "production" },
     });
@@ -20,9 +20,9 @@ export class AppRunner {
 
   async start(cwd: string): Promise<void> {
     consola.info(`Starting: ${this.config.start}`);
-    const [cmd, ...args] = this.config.start.split(/\s+/);
-    this.process = execa(cmd, args, {
+    this.process = execa(this.config.start, {
       cwd,
+      shell: true,
       stdio: "pipe",
       env: { ...process.env },
       detached: false,
@@ -42,9 +42,17 @@ export class AppRunner {
       consola.info("Stopping app...");
       this.process.kill("SIGTERM");
       try {
-        await this.process;
+        await Promise.race([
+          this.process,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Kill timeout")), 5000)
+          ),
+        ]);
       } catch {
-        // Process killed, expected
+        // Timeout or process killed — force kill
+        try {
+          this.process.kill("SIGKILL");
+        } catch {}
       }
       this.process = null;
     }

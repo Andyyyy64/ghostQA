@@ -105,17 +105,9 @@ export class PlaywrightNavigator implements INavigator {
       }
     }
 
-    if (c.no_payment && action.selector) {
-      if (/pay|purchase|buy|checkout|subscribe|billing/i.test(action.selector)) {
-        throw new Error(`Constraint: payment action blocked (no_payment=true): "${action.selector}"`);
-      }
-    }
-
-    if (c.no_delete && action.selector) {
-      if (/delete|remove|destroy|drop/i.test(action.selector)) {
-        throw new Error(`Constraint: delete action blocked (no_delete=true): "${action.selector}"`);
-      }
-    }
+    // no_payment / no_delete are enforced via AI prompt constraints.
+    // Hardcoded regex on selectors causes false positives (e.g. "Buy groceries" matching "buy").
+    // Use forbidden_selectors for explicit programmatic blocking.
 
     if (action.action === "goto" && action.url) {
       if (c.no_external_links) {

@@ -105,21 +105,9 @@ export class Navigator {
       }
     }
 
-    // Check payment-related actions
-    if (c.no_payment && action.selector) {
-      const lower = action.selector.toLowerCase();
-      if (/pay|purchase|buy|checkout|subscribe|billing/i.test(lower)) {
-        throw new Error(`Constraint: payment action blocked (no_payment=true): "${action.selector}"`);
-      }
-    }
-
-    // Check delete-related actions
-    if (c.no_delete && action.selector) {
-      const lower = action.selector.toLowerCase();
-      if (/delete|remove|destroy|drop/i.test(lower)) {
-        throw new Error(`Constraint: delete action blocked (no_delete=true): "${action.selector}"`);
-      }
-    }
+    // no_payment / no_delete are enforced via AI prompt constraints.
+    // Hardcoded regex on selectors causes false positives (e.g. "Buy groceries" matching "buy").
+    // Use forbidden_selectors for explicit programmatic blocking.
 
     // Check domain constraints for goto actions
     if (action.action === "goto" && action.url) {
