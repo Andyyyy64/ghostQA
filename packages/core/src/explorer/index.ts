@@ -16,4 +16,5 @@ export { DesktopEnvironment } from "./desktop-environment";
 export { DesktopObserver } from "./desktop-observer";
 export { DesktopNavigator } from "./desktop-navigator";
 export { DesktopPlanner } from "./desktop-planner";
+export { Discoverer } from "./discoverer";
 export { calculateScale, scaleToDisplay, scaleToApi } from "./screenshot-scaler";

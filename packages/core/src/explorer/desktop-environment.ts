@@ -128,13 +128,19 @@ export class DesktopEnvironment {
 
   /** Take a screenshot and return as base64 */
   async screenshotBase64(): Promise<string> {
+    const { join } = await import("node:path");
+    const { readFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+
+    const tmpPath = join(tmpdir(), \`ghostqa-scrot-\${Date.now()}.png\`);
     const env = { ...process.env, DISPLAY: this.config.display };
-    // Use scrot to stdout (PNG format)
-    const result = await execa("scrot", ["-o", "/dev/stdout"], {
-      env,
-      encoding: "buffer",
-    });
-    return (result.stdout as unknown as Buffer).toString("base64");
+    await execa("scrot", [tmpPath], { env });
+    try {
+      const buf = await readFile(tmpPath);
+      return buf.toString("base64");
+    } finally {
+      await rm(tmpPath, { force: true }).catch(() => {});
+    }
   }
 
   /** Get recent process logs (stdout + stderr) and clear the buffer */

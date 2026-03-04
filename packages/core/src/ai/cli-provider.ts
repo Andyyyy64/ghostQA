@@ -27,7 +27,7 @@ interface ClaudeJsonOutput {
  *
  * Supported tools:
  *   claude  — Claude Code CLI (uses --output-format json for usage tracking)
- *   codex   — OpenAI Codex CLI (stdin piped to `codex -q`)
+ *   codex   — OpenAI Codex CLI (codex exec -i <image> for vision)
  *   gemini  — Gemini CLI (uses --output-format json for usage tracking)
  */
 export class CliProvider implements AiProvider {
@@ -60,8 +60,14 @@ export class CliProvider implements AiProvider {
     const imgPath = join(tmpdir(), `ghostqa-${nanoid(6)}.png`);
     await writeFile(imgPath, Buffer.from(imageBase64, "base64"));
 
-    const prompt = this.buildPrompt(system, messages, imgPath);
     try {
+      if (this.isCodex()) {
+        // Codex supports native image input via -i flag
+        const prompt = this.buildPrompt(system, messages);
+        return await this.invoke(prompt, imgPath);
+      }
+      // Claude/Gemini: reference the image path in the prompt text
+      const prompt = this.buildPrompt(system, messages, imgPath);
       return await this.invoke(prompt);
     } finally {
       await rm(imgPath, { force: true }).catch(() => {});
@@ -83,23 +89,37 @@ export class CliProvider implements AiProvider {
     }
 
     if (imagePath) {
-      parts.push(`\n[Screenshot attached: ${imagePath}]`);
+      parts.push(
+        `\nIMPORTANT: Read and analyze the screenshot image at ${imagePath} — it shows the current screen state.`
+      );
     }
 
     return parts.join("\n\n");
   }
 
-  private async invoke(prompt: string): Promise<ChatResponse> {
+  private async invoke(
+    prompt: string,
+    imagePath?: string
+  ): Promise<ChatResponse> {
     const cmd = this.resolveCommand();
-    const args = this.buildArgs();
+    const args = this.buildArgs(imagePath);
     const isClaude = this.isClaude();
 
-    consola.debug(`CLI AI: ${cmd} ${args.join(" ")} (${prompt.length} chars via stdin)`);
+    consola.debug(
+      `CLI AI: ${cmd} ${args.join(" ")} (${prompt.length} chars via stdin)`
+    );
+
+    // Remove Claude Code env vars to avoid nesting detection
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.CLAUDECODE;
+    delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
 
     const result = await execa(cmd, args, {
       input: prompt,
       timeout: 180_000,
       reject: false,
+      env: cleanEnv,
+      extendEnv: false,
     });
 
     if (result.exitCode !== 0 && result.stderr) {
@@ -108,16 +128,19 @@ export class CliProvider implements AiProvider {
 
     const raw = result.stdout.trim();
 
-    // Claude/Gemini with --output-format json returns structured data with usage info
     if (isClaude) {
       return this.parseClaudeJson(raw, prompt);
     }
     if (this.isGemini()) {
       return this.parseGeminiJson(raw, prompt);
     }
+    if (this.isCodex()) {
+      return this.parseCodexOutput(raw, prompt);
+    }
 
-    // Other CLI tools: use text output + estimation
-    consola.debug(`CLI AI response (${raw.length} chars): ${raw.slice(0, 200)}...`);
+    consola.debug(
+      `CLI AI response (${raw.length} chars): ${raw.slice(0, 200)}...`
+    );
     return {
       text: raw,
       inputTokens: estimateTokens(prompt),
@@ -147,8 +170,9 @@ export class CliProvider implements AiProvider {
 
       return { text, inputTokens, outputTokens };
     } catch {
-      // JSON parse failed — claude might have returned plain text
-      consola.debug("Failed to parse Claude JSON output, falling back to text");
+      consola.debug(
+        "Failed to parse Claude JSON output, falling back to text"
+      );
       return {
         text: raw,
         inputTokens: estimateTokens(prompt),
@@ -167,10 +191,13 @@ export class CliProvider implements AiProvider {
       return {
         text: typeof text === "string" ? text : JSON.stringify(text),
         inputTokens: data.usage?.input_tokens ?? estimateTokens(prompt),
-        outputTokens: data.usage?.output_tokens ?? estimateTokens(String(text)),
+        outputTokens:
+          data.usage?.output_tokens ?? estimateTokens(String(text)),
       };
     } catch {
-      consola.debug("Failed to parse Gemini CLI JSON output, falling back to text");
+      consola.debug(
+        "Failed to parse Gemini CLI JSON output, falling back to text"
+      );
       return {
         text: raw,
         inputTokens: estimateTokens(prompt),
@@ -179,9 +206,26 @@ export class CliProvider implements AiProvider {
     }
   }
 
+  /** Parse codex exec output — extract the last assistant message */
+  private parseCodexOutput(raw: string, prompt: string): ChatResponse {
+    consola.debug(
+      `Codex response (${raw.length} chars): ${raw.slice(0, 200)}...`
+    );
+    return {
+      text: raw,
+      inputTokens: estimateTokens(prompt),
+      outputTokens: estimateTokens(raw),
+    };
+  }
+
   private isClaude(): boolean {
     const cmd = this.command.split("/").pop() ?? this.command;
     return cmd === "claude";
+  }
+
+  private isCodex(): boolean {
+    const cmd = this.command.split("/").pop() ?? this.command;
+    return cmd === "codex";
   }
 
   private isGemini(): boolean {
@@ -193,16 +237,28 @@ export class CliProvider implements AiProvider {
     return this.command;
   }
 
-  private buildArgs(): string[] {
+  private buildArgs(imagePath?: string): string[] {
     const cmd = this.command.split("/").pop() ?? this.command;
 
     switch (cmd) {
       case "claude":
-        // Use JSON output to get usage/cost data; extract result text ourselves
-        return ["-p", "--output-format", "json", ...this.extraArgs];
+        // --dangerously-skip-permissions: needed for -p mode to read image files
+        return [
+          "-p",
+          "--output-format",
+          "json",
+          "--dangerously-skip-permissions",
+          ...this.extraArgs,
+        ];
 
       case "codex":
-        return ["-q", ...this.extraArgs];
+        // codex exec: non-interactive mode with native image support via -i
+        return [
+          "exec",
+          "--dangerously-bypass-approvals-and-sandbox",
+          ...(imagePath ? ["-i", imagePath] : []),
+          ...this.extraArgs,
+        ];
 
       case "gemini":
         return ["-p", "--output-format", "json", ...this.extraArgs];
