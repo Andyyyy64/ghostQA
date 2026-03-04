@@ -71,7 +71,7 @@ export class DesktopEnvironment {
       try {
         const searchArgs = windowName
           ? ["search", "--name", windowName]
-          : ["search", "--onscreen", "--name", ""];
+          : ["search", "--onlyvisible", "--name", ""];
         const result = await execa("xdotool", searchArgs, { env, reject: false });
 
         if (result.stdout.trim()) {
@@ -96,7 +96,7 @@ export class DesktopEnvironment {
     const env = { ...process.env, DISPLAY: this.config.display };
     const searchArgs = this.config.windowName
       ? ["search", "--name", this.config.windowName]
-      : ["search", "--onscreen", "--name", ""];
+      : ["search", "--onlyvisible", "--name", ""];
 
     try {
       const result = await execa("xdotool", searchArgs, { env, reject: false });
