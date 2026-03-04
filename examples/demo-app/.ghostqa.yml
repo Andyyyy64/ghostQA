@@ -1,32 +1,23 @@
+# ghostQA — auto-detected from package.json
+# Docs: https://github.com/ghostqa/ghostqa/blob/main/docs/configuration.md
+
 app:
-  name: demo-todo-app
-  root: "."
-  build: "echo 'no build needed'"
-  start: "node server.js"
+  name: ghostqa-demo-app
+  build: "pnpm run build"
+  start: "pnpm run dev"
   url: "http://localhost:3000"
-  healthcheck:
-    path: "/"
-    timeout: 10000
-    interval: 500
 
 ai:
-  provider: cli
-  max_budget_usd: 5.0
+  provider: cli               # cli (Claude Code) | gemini | anthropic | openai
   cli:
-    command: claude
+    command: claude            # claude | codex | gemini
 
 explorer:
-  enabled: true
   max_steps: 50
-  max_duration: 600000
-  viewport:
-    width: 1280
-    height: 720
+  max_duration: 300000        # 5 minutes
 
-reporter:
-  output_dir: .ghostqa-runs
-  formats:
-    - html
-    - json
-  video: true
-  screenshots: true
+constraints:
+  no_payment: true
+  allowed_domains:
+    - localhost
+    - "127.0.0.1"

@@ -5,60 +5,66 @@ import { GhostQAConfigSchema, type GhostQAConfig } from "../types/config";
 
 const CONFIG_FILENAME = ".ghostqa.yml";
 
-const DEFAULT_CONFIG_YAML = `# ghostQA Configuration
-# See https://github.com/ghostqa/ghostqa for documentation
+interface DetectedProject {
+  name: string;
+  build: string;
+  start: string;
+  port: number;
+  packageManager: "pnpm" | "yarn" | "npm";
+}
 
-app:
-  name: my-app
-  root: "."
-  build: "npm run build"
-  start: "npm start"
-  url: "http://localhost:3000"
-  healthcheck:
-    path: "/"
-    timeout: 30000
-    interval: 1000
+async function detectProject(cwd: string): Promise<DetectedProject> {
+  const defaults: DetectedProject = {
+    name: "my-app",
+    build: "npm run build",
+    start: "npm start",
+    port: 3000,
+    packageManager: "npm",
+  };
 
-environment:
-  mode: native
-  # mode: docker
-  # docker:
-  #   image: ghostqa/runner:latest
+  // Detect package manager from lockfile (check cwd and parent dirs)
+  const lockfiles = [
+    { file: "pnpm-lock.yaml", pm: "pnpm" as const },
+    { file: "yarn.lock", pm: "yarn" as const },
+    { file: "package-lock.json", pm: "npm" as const },
+  ];
+  let searchDir = cwd;
+  outer: while (true) {
+    for (const { file, pm } of lockfiles) {
+      try {
+        await access(resolve(searchDir, file));
+        defaults.packageManager = pm;
+        break outer;
+      } catch {}
+    }
+    const parent = resolve(searchDir, "..");
+    if (parent === searchDir) break;
+    searchDir = parent;
+  }
 
-ai:
-  # provider: gemini (default) or cli (use Claude Code / Codex CLI)
-  provider: gemini
-  model: gemini-2.0-flash
-  max_budget_usd: 1.0
-  api_key_env: GEMINI_API_KEY
-  # CLI tool settings (only used when provider: cli)
-  # cli:
-  #   command: claude    # or: codex, or any CLI tool path
-  #   args: []
+  // Read package.json
+  try {
+    const raw = await readFile(resolve(cwd, "package.json"), "utf-8");
+    const pkg = JSON.parse(raw);
+    const pm = defaults.packageManager;
 
-explorer:
-  mode: web         # web | desktop | auto
-  enabled: true
-  max_steps: 50
-  max_duration: 300000
-  viewport:
-    width: 1280
-    height: 720
-  # Desktop mode settings (only used when mode: desktop)
-  # desktop:
-  #   display: ":99"
-  #   app_command: "electron ."
-  #   window_name: "My App"
-  #   window_timeout: 30000
+    if (pkg.name) defaults.name = pkg.name;
 
-reporter:
-  output_dir: .ghostqa-runs
-  formats:
-    - html
-    - json
-  video: true
-  screenshots: true
-`;
+    const scripts = pkg.scripts ?? {};
+    if (scripts.build) defaults.build = `${pm} run build`;
+    else defaults.build = `echo 'no build step'`;
+
+    if (scripts.dev) defaults.start = `${pm} run dev`;
+    else if (scripts.start) defaults.start = `${pm} start`;
+
+    // Extract port from start/dev script
+    const startScript = scripts.dev ?? scripts.start ?? "";
+    const portMatch = startScript.match(/(?:--port|PORT=|-p)\s*(\d+)/);
+    if (portMatch) defaults.port = parseInt(portMatch[1], 10);
+  } catch {}
+
+  return defaults;
+}
 
 export async function configExists(cwd: string): Promise<boolean> {
   try {
@@ -70,8 +76,36 @@ export async function configExists(cwd: string): Promise<boolean> {
 }
 
 export async function generateConfig(cwd: string): Promise<string> {
+  const project = await detectProject(cwd);
+  const url = `http://localhost:${project.port}`;
+
+  const yaml = `# ghostQA — auto-detected from package.json
+# Docs: https://github.com/ghostqa/ghostqa/blob/main/docs/configuration.md
+
+app:
+  name: ${project.name}
+  build: "${project.build}"
+  start: "${project.start}"
+  url: "${url}"
+
+ai:
+  provider: cli               # cli (Claude Code) | gemini | anthropic | openai
+  cli:
+    command: claude            # claude | codex | gemini
+
+explorer:
+  max_steps: 50
+  max_duration: 300000        # 5 minutes
+
+constraints:
+  no_payment: true
+  allowed_domains:
+    - localhost
+    - "127.0.0.1"
+`;
+
   const configPath = resolve(cwd, CONFIG_FILENAME);
-  await writeFile(configPath, DEFAULT_CONFIG_YAML, "utf-8");
+  await writeFile(configPath, yaml, "utf-8");
   return configPath;
 }
 

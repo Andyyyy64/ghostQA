@@ -16,8 +16,7 @@ export const initCommand = new Command("init")
     }
 
     const path = await generateConfig(cwd);
-    consola.success(`Created ${path}`);
-    consola.info("Edit .ghostqa.yml to configure your project, then run:");
-    consola.info("  ghostqa doctor  # check dependencies");
-    consola.info("  ghostqa run     # run analysis");
+    consola.success(`Created ${path} (auto-detected from package.json)`);
+    consola.info("Review the config, then run:");
+    consola.info("  ghostqa run     # start analysis");
   });
