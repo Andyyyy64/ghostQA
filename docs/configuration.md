@@ -56,7 +56,7 @@ AI provider and budget settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | `"gemini"` \| `"anthropic"` \| `"openai"` \| `"cli"` | `"gemini"` | AI backend |
+| `provider` | `"gemini"` \| `"anthropic"` \| `"openai"` \| `"cli"` | `"cli"` | AI backend (`cli` uses Claude Code by default) |
 | `model` | string | `"gemini-2.0-flash"` | Model name |
 | `api_key_env` | string | `"GEMINI_API_KEY"` | Environment variable for API key |
 | `max_budget_usd` | number | `1.0` | Maximum cost per run in USD |
