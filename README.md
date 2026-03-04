@@ -6,7 +6,7 @@
 
 <p align="center">
   ghostQA reads your git diff, launches your app, and sends an AI to operate a real browser —<br>
-  generating tests, exploring pages, and catching bugs <em>before</em> your users do.
+  exploring pages and catching bugs <em>before</em> your users do.
 </p>
 
 ---
@@ -20,22 +20,18 @@ You ship a PR. The diff looks fine. But did it break the checkout page? Does the
 
 ghostQA fills the gap:
 
-- **No tests to write** — the AI reads your diff and generates Playwright tests automatically
-- **No scenarios to define** — the AI explores your app on its own, driven by what your diff actually changed
+- **No tests to write** — the AI explores your app autonomously, driven by what your diff actually changed
+- **No scenarios to define** — the AI decides what to test based on the actual code changes
 - **Evidence, not opinions** — every finding comes with screenshots, video, console logs, and reproduction steps
 - **Works with any dev tool** — Cursor, Claude Code, Codex, hand-written code. ghostQA doesn't care how you write code, only what changed
 
 ## What It Does
 
 ```
-git diff → AI Impact Analysis → Build & Start App → Two-Layer Testing → HTML Report
+git diff → AI Impact Analysis → Build & Start App → AI Exploration → HTML Report
 ```
 
-### Layer A: Test Generation
-
-The AI reads your diff, identifies the affected areas, and generates targeted Playwright E2E tests. These run deterministically — no flakiness from AI judgment. Failed tests retry once. Generated test files are saved so you can commit them as permanent regression tests.
-
-### Layer B: AI Exploration
+### AI Exploration
 
 An AI agent autonomously navigates your running app in a real browser. It reads the accessibility tree and screenshots, plans what to do next, clicks buttons, fills forms, and reports anything wrong — crashes, console errors, broken layouts, dead clicks, blank pages, infinite loading states.
 
@@ -102,10 +98,9 @@ That's it. ghostQA will:
 
 1. Parse your latest git diff and estimate impact areas with AI
 2. Build and start your application
-3. Generate and execute targeted Playwright E2E tests
-4. Launch an AI agent to explore your app in a real browser
-5. Record video, screenshots, and console logs
-6. Output an HTML report with a PASS / FAIL / WARN verdict
+3. Launch an AI agent to explore your app in a real browser
+4. Record video, screenshots, and console logs
+5. Output an HTML report with a PASS / FAIL / WARN verdict
 
 ### 4. View the report
 
@@ -133,8 +128,7 @@ ghostqa run [options]
   --base <ref>           Base git ref for Before/After comparison
   --head <ref>           Head git ref (default: HEAD)
   --diff <ref>           Git diff reference (default: HEAD~1)
-  --no-layer-a           Skip test generation
-  --no-layer-b           Skip AI exploration
+  --no-explore           Skip AI exploration
   --budget <usd>         Override max AI budget
   -c, --config <path>    Config file path (default: .ghostqa.yml)
 ```
@@ -191,15 +185,13 @@ Each run creates a directory under `.ghostqa-runs/`:
   screenshots/         Step-by-step + discovery screenshots
   videos/              Full browser session recordings (.webm)
   traces/              HAR network trace
-  generated-tests/     Playwright test files (committable)
 ```
 
 The HTML report includes:
 
 - **Verdict card** — PASS / FAIL / WARN with color coding
 - **Diff analysis** — what changed, what areas are impacted
-- **Layer A results** — generated test pass/fail counts with error details
-- **Layer B trace** — every exploration step with screenshots
+- **Explorer trace** — every exploration step with screenshots
 - **Discoveries** — each bug with severity, description, evidence screenshot, console errors
 - **Cost breakdown** — AI token usage and spend
 
@@ -276,16 +268,10 @@ ai:
     args: []
   routing:                         # Optional: per-task provider overrides
     diff_analysis: { ... }
-    test_generation: { ... }
     ui_control: { ... }
     triage: { ... }
 
-layer_a:
-  enabled: true
-  max_tests: 10                    # Max generated tests
-  timeout_per_test: 30000          # Per-test timeout (ms)
-
-layer_b:
+explorer:
   enabled: true
   max_steps: 50                    # Max exploration steps
   max_duration: 300000             # Max exploration time (ms)
@@ -319,8 +305,7 @@ packages/
     diff-analyzer/   Git diff parsing + LLM impact analysis
     environment/     Docker / native environment management
     app-runner/      Build -> start -> healthcheck
-    layer-a/         E2E test generation + execution
-    layer-b/         AI exploration loop (observe -> plan -> act -> discover)
+    explorer/        AI exploration loop (observe -> plan -> act -> discover)
     recorder/        Video / screenshot / console / HAR capture
     reporter/        HTML + JSON report generation
     orchestrator/    Pipeline coordination

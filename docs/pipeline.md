@@ -4,16 +4,15 @@
 
 **File:** `packages/core/src/orchestrator/run-pipeline.ts`
 
-`ghostqa run` executes a 7-step pipeline:
+`ghostqa run` executes a 6-step pipeline:
 
 ```
 Step 1: Diff Analysis
 Step 2: Environment Setup
 Step 3: Build
 Step 4: App Start + Healthcheck
-Step 5: Layer A (Test Generation + Execution)
-Step 6: Layer B (AI Exploration)
-Step 7: Report Generation
+Step 5: AI Exploration
+Step 6: Report Generation
 ```
 
 ### Step 1: Diff Analysis
@@ -56,26 +55,11 @@ await appRunner.start(cwd);
 - Polls the healthcheck URL until it responds with `200 OK`
 - Default timeout: 30 seconds, poll interval: 1 second
 
-### Step 5: Layer A
+### Step 5: AI Exploration
 
 ```typescript
-if (config.layer_a.enabled && analysis.impact_areas.length > 0) {
-  layerAResult = await layerARunner.run(analysis);
-}
-```
-
-- AI generates Playwright test code based on the diff analysis
-- Tests are written to disk and executed via Playwright CLI
-- Failed tests retry once
-- Failures become `Discovery` objects (severity: `high`)
-
-See [Layer A](./layer-a.md) for details.
-
-### Step 6: Layer B
-
-```typescript
-if (config.layer_b.enabled && analysis.impact_areas.length > 0) {
-  layerBResult = await layerBRunner.run(page, analysis, onProgress);
+if (config.explorer.enabled && analysis.impact_areas.length > 0) {
+  explorerResult = await explorer.run(page, analysis, onProgress);
 }
 ```
 
@@ -83,9 +67,9 @@ if (config.layer_b.enabled && analysis.impact_areas.length > 0) {
 - Observe → plan → act loop until guardrails stop it
 - Discovers bugs via console error detection and AI observation
 
-See [Layer B](./layer-b.md) for details.
+See [Explorer](./explorer.md) for details.
 
-### Step 7: Report
+### Step 6: Report
 
 ```typescript
 const verdict = reporter.determineVerdict(discoveries);
@@ -104,13 +88,13 @@ The pipeline manages a single Playwright browser instance:
 ```typescript
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
-  viewport: config.layer_b.viewport,
+  viewport: config.explorer.viewport,
   ...recorder.contextOptions(),  // video + HAR recording
 });
 const page = await context.newPage();
 ```
 
-The context is configured with video recording and HAR tracing from the start. The same page is shared between Layer A (for context) and Layer B (for exploration).
+The context is configured with video recording and HAR tracing from the start. The page is used by the explorer for AI exploration.
 
 ### Signal Handling
 
@@ -124,10 +108,10 @@ This ensures no zombie processes or dangling containers.
 
 ### Budget Exceeded Handling
 
-If `BudgetExceededError` is thrown at any point during Layer A or B:
+If `BudgetExceededError` is thrown at any point during exploration:
 
 ```
-Catch BudgetExceededError → log warning → skip to Step 7 → generate partial report
+Catch BudgetExceededError → log warning → skip to Step 6 → generate partial report
 ```
 
 The partial report includes whatever results were collected before the budget ran out.
@@ -141,7 +125,6 @@ The partial report includes whatever results were collected before the budget ra
   screenshots/
   videos/
   traces/
-  generated-tests/
 ```
 
 `run-id` is generated as `run-<nanoid(10)>`.

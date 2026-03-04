@@ -12,8 +12,7 @@
 
 - **`ghostqa run`** — フルパイプラインが1コマンドで完走する
 - **Diff 解析** — `git diff` → AI影響推定（4-6 impact areas 生成）
-- **Layer A（テスト生成＋実行）** — AIがPlaywrightテストコードを生成、`@playwright/test` を自前解決して実行。失敗テストは1回リトライ。Playwright JSON レポートから詳細エラーを抽出。生成テストは `generated-tests/` に保存
-- **Layer B（AI探索）** — AIがブラウザを実操作し、バグを発見・evidence付きで報告
+- **AI探索（Explorer）** — AIがブラウザを実操作し、バグを発見・evidence付きで報告
   - AXツリー＋スクショをAIに渡す observe → plan → act ループ
   - 意図的に仕込んだバグ3つ中3つを検出（typo, ロジックバグ, 表示バグ）
   - 各ステップのスクショ記録、discovery 時の証拠スクショ
@@ -34,8 +33,7 @@
 
 ### 動くが改善の余地あり
 
-- **Layer A テスト品質** — AI 生成テストの品質にばらつきがある。リトライ機構で緩和しているが、根本的には LLM の生成品質に依存
-- **Layer B discovery 報告** — AI が `discovery` フィールドに入れ忘れることがまれにある
+- **Explorer discovery 報告** — AI が `discovery` フィールドに入れ忘れることがまれにある
 - **CLI レートリミット表示** — 現在は案内テキストのみ。将来的にプログラム的に取得できれば % 表示に対応
 
 ### v0.5 で実装済み
@@ -56,11 +54,11 @@
 |--------|------|------|
 | 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。現状 Gemini API + CLI (claude/codex) のみ → 主要3社 API + CLI を全カバー |
 | 2 | **computer-use バックエンド** | Web 以外の GUI アプリ対応（CLI / Electron / Tauri）。ghostQA on ghostQA のドッグフーディング |
-| 3 | **決定論リプレイモード** | Layer B の発見を Playwright テストに固定化。発見→テスト資産化 |
+| 3 | **決定論リプレイモード** | Explorer の発見を Playwright テストに固定化。発見→テスト資産化 |
 | 4 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
 | 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、CI での継続比較基準にする |
 | 6 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
-| 並行 | **自プロジェクトのテスト強化** | Layer B 周りのカバレッジ改善。リファクタ耐性 |
+| 並行 | **自プロジェクトのテスト強化** | Explorer 周りのカバレッジ改善。リファクタ耐性 |
 
 **スコープ外（やらない）:**
 - プラグイン機構（過剰設計）
@@ -96,8 +94,7 @@ ghostqa/
 │   │       ├── diff-analyzer/# git diff → AI 影響推定
 │   │       ├── environment/  # Docker / native 環境管理
 │   │       ├── app-runner/   # build → start → healthcheck
-│   │       ├── layer-a/      # テスト生成 + 実行
-│   │       ├── layer-b/      # AI 探索ループ
+│   │       ├── explorer/      # AI 探索ループ
 │   │       ├── recorder/     # 動画 / スクショ / console / HAR
 │   │       ├── reporter/     # HTML / JSON レポート生成
 │   │       ├── orchestrator/ # run-pipeline.ts（全体制御）
@@ -131,7 +128,7 @@ Web は現在の主戦場だが、デスクトップアプリ（Electron / Tauri
 - diff 解析の前段で `project-analyzer` ステップとして実行
 
 **実装方針:**
-- Layer B の `observer` / `navigator` を抽象化し、Playwright 実装と computer-use 実装を差し替え可能にする
+- Explorer の `observer` / `navigator` を抽象化し、Playwright 実装と computer-use 実装を差し替え可能にする
 - v0.1: Playwright のみ（現状）
 - v1.0: computer-use バックエンド追加、Electron / Tauri 対応、LLM モード判定
 
@@ -153,11 +150,11 @@ Web は現在の主戦場だが、デスクトップアプリ（Electron / Tauri
 
 ### 1.1 一言定義
 
-ghostqa は、コード変更（diff）に対して隔離されたGUI環境でAIがアプリケーションを実際に操作し、テスト生成＋アドリブ探索のハイブリッドで潜在的なバグ・回帰・脆弱性を発見し、動画・スクショ・ログの「証拠パック」としてレポートするCLI / GitHub Actionツール。
+ghostqa は、コード変更（diff）に対して隔離されたGUI環境でAIがアプリケーションを実際に操作し、アドリブ探索で潜在的なバグ・回帰・脆弱性を発見し、動画・スクショ・ログの「証拠パック」としてレポートするCLI / GitHub Actionツール。
 
 ### 1.2 コアバリュー
 
-- **テスト未整備でも使える**：E2Eテストが0本でも、AIがdiffを読んで自動でテスト生成＆探索する
+- **テスト未整備でも使える**：E2Eテストが0本でも、AIがdiffを読んで自動で探索する
 - **証拠ベースのレビュー**：「壊れてないか？」を議論ではなく、Before/Afterの動画・スクショ・ログで判断できる
 - **IDE / AIツール非依存**：Cursor / Claude Code / Codex / 手書き、どの開発フローでも同じ価値を提供
 - **CLI + GitHub Action の両対応**：手元で即チェック、CIで自動ゲート
@@ -196,18 +193,14 @@ ghostqa は、コード変更（diff）に対して隔離されたGUI環境でAI
 │  4. base側でアプリをビルド & 起動                               │
 │     build_command → start_command → healthcheck待ち            │
 │     ↓                                                        │
-│  5A. テスト生成 & 実行（安定層）                                │
-│     LLMがdiffから単体/結合/E2Eテストを自動生成                  │
-│     Playwright等で決定論的に実行                                │
-│     ↓                                                        │
-│  5B. AI探索 & 発見（探索層）                                   │
+│  5. AI探索 & 発見                                              │
 │     AIがブラウザを実際に操作、影響画面を巡回                     │
 │     リアルタイム判断でクラッシュ/エラー/崩れを発見               │
 │     ↓                                                        │
 │  6. 証拠記録                                                   │
 │     動画 / スクショ / console / network / 操作トレース          │
 │     ↓                                                        │
-│  7. head側で同じことを実行（4→5A→5B→6）                       │
+│  7. head側で同じことを実行（4→5→6）                            │
 │     ↓                                                        │
 │  8. Before/After 比較                                          │
 │     Visual diff（スクショ）+ Behavioral diff（ログ/挙動）       │
@@ -217,26 +210,15 @@ ghostqa は、コード変更（diff）に対して隔離されたGUI環境でAI
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 二層構造（ghostqaの核心設計）
+### 2.2 AI探索アーキテクチャ（ghostqaの核心設計）
 
-ghostqa のテスト戦略は2層で構成される。これがこのプロダクトの差別化の核。
+ghostqa の核心は **AI Explorer**。AIがブラウザ上でリアルタイムに操作し、diffの影響範囲を自律的に探索する。
 
-**Layer A：テスト生成層（安定・決定論）**
-
-- LLMがdiffを読み、影響範囲に対応する単体テスト / 結合テスト / E2Eテスト（Playwright）を自動生成
-- 生成されたテストは決定論的に実行される（AIの気分に左右されない）
-- 既存のテストフレームワーク（jest / vitest / pytest / Playwright）の形式で出力
-- 生成されたテストはリポジトリにコミット可能（資産として蓄積）
-
-**Layer B：AI探索層（アドリブ・発見型）**
-
-- AIがブラウザ上でリアルタイムに操作し、Layer Aがカバーしきれない領域を探索
+- AIがブラウザ上でリアルタイムに操作し、影響のある画面を探索
 - 画面の見た目、遷移の自然さ、エラーの有無をその場で判断
 - 「テストコードでは書きにくい異常」（レイアウト崩れ、フリーズ、無限ローディング、クリック不能）を発見
-- 探索で見つかった重要パスは、次回以降のLayer A用テストとして固定化できる
-
-**なぜ2層か：**
-Layer A だけだと既存ツール（Codium/Qodo等）と差別化できない。Layer B だけだと不安定で実用に耐えない。両方あることで「安定＋斬新」を両立する。
+- observe → plan → act ループで自律的に探索を進める
+- console error の自動検出 + AI による視覚的・機能的バグの発見
 
 ---
 
@@ -333,7 +315,7 @@ report:
 - `credentials`：テスト用アカウント情報（環境変数参照）
 - `seed_script`：テストデータ初期化スクリプト
 - `ui_hints`：ログイン手順の注意点、重要なセレクタ等
-- 既存のPlaywright / Cypressテスト（あればLayer Aで活用）
+- 既存のPlaywright / Cypressテスト（あれば探索の参考に活用）
 
 ---
 
@@ -361,10 +343,7 @@ report:
     │   │   ├── console.json             # console.log/error/warn
     │   │   ├── network.har              # HAR形式
     │   │   └── app_stdout.log           # アプリのstdout/stderr
-    │   └── generated_tests/             # Layer A：生成されたテストコード
-    │       ├── unit/
-    │       ├── integration/
-    │       └── e2e/
+    │   └── traces/                      # 探索トレース
     ├── head/                            # headコミット側（同構造）
     │   └── ...
     ├── diff/                            # 比較結果
@@ -374,9 +353,8 @@ report:
     │   │   │   ├── step_002_after.png
     │   │   │   └── step_002_diff.png    # ヒートマップ
     │   │   └── ...
-    │   ├── behavioral.json              # ログ差分サマリ
-    │   └── test_results.json            # 生成テストの実行結果
-    ├── discoveries/                     # Layer B：AI探索で発見した異常
+    │   └── behavioral.json              # ログ差分サマリ
+    ├── discoveries/                     # AI探索で発見した異常
     │   ├── discovery_001/
     │   │   ├── screenshot.png
     │   │   ├── video_clip.mp4           # 該当箇所の切り出し
@@ -397,14 +375,9 @@ report:
   "verdict": "FAIL",
   "duration_s": 245,
   "cost_usd": 1.23,
-  "layer_a": {
-    "tests_generated": 8,
-    "tests_passed": 7,
-    "tests_failed": 1,
-    "failed_tests": ["profile_update_save_reflects_change"]
-  },
-  "layer_b": {
+  "explorer": {
     "pages_visited": 13,
+    "steps_taken": 25,
     "discoveries": 1,
     "discovery_summaries": [
       "保存ボタン押下後に500エラー。設定画面が無限ローディング状態に陥る"
@@ -425,17 +398,13 @@ report:
 
 ### Results
 
-| Layer | Result | Verdict |
-|-------|--------|---------|
-| Layer A (テスト) | 7/8 passed | ❌ FAIL |
-| Layer B (探索) | 1 discovery | ❌ FAIL |
+| Category | Result | Verdict |
+|----------|--------|---------|
+| Explorer (探索) | 1 discovery | ❌ FAIL |
 
 ### ❌ Failures
 
-**Layer A**
-`profile_update_save_reflects_change` — 保存APIが500を返却
-
-**Layer B (discovery)**
+**Explorer (discovery)**
 保存ボタン押下後に500エラー。設定画面が無限ローディング状態に陥る
 📸 [スクショ](link) | 🎬 [動画](link) | 🔁 [再現手順](link)
 
@@ -461,10 +430,7 @@ ghostqa/
 │   ├── diff-analyzer/      # diff取得 → 影響範囲推定
 │   ├── environment/        # 隔離環境の起動・管理（Docker/native）
 │   ├── app-runner/         # アプリのビルド・起動・ヘルスチェック
-│   ├── layer-a/            # テスト生成 → 実行
-│   │   ├── test-generator/ # LLMによるテストコード生成
-│   │   └── test-runner/    # 生成テストの実行
-│   ├── layer-b/            # AI探索
+│   ├── explorer/            # AI探索
 │   │   ├── navigator/      # GUI操作（クリック/入力/スクロール/待機/戻る）
 │   │   ├── observer/       # 画面状態理解（DOM/AXツリー/スクショ/ログ）
 │   │   ├── planner/        # 探索計画（影響範囲→巡回順序）
@@ -479,7 +445,7 @@ ghostqa/
 
 ### 5.2 diff-analyzer
 
-**責務：** git diffから「何が変わったか」「どこに影響するか」を抽出し、Layer A/Bに渡す。
+**責務：** git diffから「何が変わったか」「どこに影響するか」を抽出し、Explorerに渡す。
 
 **処理：**
 1. `git diff base...head` でファイル一覧と変更内容を取得
@@ -489,28 +455,9 @@ ghostqa/
 3. LLMに diff + プロジェクト構造を渡し、影響する画面・コンポーネントを推定
 4. 出力：`ImpactReport`（影響画面、影響コンポーネント、優先度）
 
-### 5.3 layer-a（テスト生成層）
+### 5.3 explorer（AI探索）
 
-**責務：** diffの影響範囲に対するテストを自動生成し、決定論的に実行する。
-
-**処理：**
-1. `ImpactReport` + diff + ソースコードの関連部分をLLMに渡す
-2. LLMが以下を生成：
-   - 単体テスト（変更された関数/ロジックの入出力検証）
-   - 結合テスト（API呼び出し→レスポンス検証）
-   - E2Eテスト（Playwrightスクリプト：画面操作→期待値検証）
-3. 生成されたテストを base/head それぞれで実行
-4. 結果を `TestResults` として出力
-
-**テスト生成のルール：**
-- 出力フレームワーク：Playwright（E2E）、vitest/jest（単体/結合）
-- セレクタ方針：`data-testid` > `role` > `aria-label` > CSS selector の優先度
-- 必ずアサーションを含むこと（期待値なしのテストは無効）
-- 生成テストは `generated_tests/` に保存し、ユーザーがコミット可能
-
-### 5.4 layer-b（AI探索層）
-
-**責務：** ブラウザ上でAIがリアルタイムに操作し、テスト生成では見つけにくい異常を発見する。
+**責務：** ブラウザ上でAIがリアルタイムに操作し、潜在的な異常を発見する。
 
 **処理：**
 1. `ImpactReport` から影響画面の優先リストを受け取る
@@ -553,7 +500,6 @@ ghostqa/
 - console.error / warn の件数比較（増減）
 - network 失敗リクエストの件数比較
 - HTTP ステータスコード分布の変化
-- 生成テストの pass/fail 変化
 
 ### 5.6 reporter
 
@@ -565,12 +511,11 @@ ghostqa/
 - Markdown：PRコメント用（GitHub Actions経由）
 
 **レポートの構成：**
-1. サマリ（verdict、所要時間、コスト、Layer A/B結果）
+1. サマリ（verdict、所要時間、コスト、Explorer結果）
 2. Failures & Discoveries（失敗詳細 + 動画/スクショリンク）
 3. Visual Diff ギャラリー（before/after/diff を並べて表示）
 4. Console / Network 比較表
-5. 生成テスト一覧（コード + 実行結果）
-6. AI探索トレース（操作ログ + 判断理由）
+5. AI探索トレース（操作ログ + 判断理由）
 
 ---
 
@@ -604,7 +549,7 @@ ghostqa run
 --base <ref>          # 比較元（デフォルト：origin/main との merge-base）
 --head <ref>          # 比較先（デフォルト：HEAD）
 --engine docker|native  # 実行環境（デフォルト：docker）
---layer a|b|both      # 実行する層（デフォルト：both）
+--no-explore          # AI探索をスキップ
 --no-video            # 動画を記録しない（高速化）
 --verbose             # 詳細ログ出力
 --output <dir>        # 成果物出力先（デフォルト：.ghostqa-runs/）
@@ -614,7 +559,7 @@ ghostqa run
 1. `.ghostqa.yml` を読み込み・バリデーション
 2. base/head のコミットを確定
 3. 隔離環境を起動（Docker or native）
-4. base側：ビルド→起動→ヘルスチェック→Layer A実行→Layer B実行→記録
+4. base側：ビルド→起動→ヘルスチェック→AI探索→記録
 5. head側：同上
 6. 比較（visual + behavioral）
 7. レポート生成
@@ -749,9 +694,6 @@ ai:
     diff_analysis:
       provider: anthropic
       model: claude-sonnet-4-20250514
-    test_generation:
-      provider: openai
-      model: gpt-4o
     ui_control:
       provider: gemini                 # vision が安い
       model: gemini-2.0-flash
@@ -777,8 +719,7 @@ ai:
 | 対象 | Webアプリのみ（React / Next.js / Vue / 静的サイト等） |
 | 実行環境 | Docker + Xvfb + Chromium + ffmpeg |
 | AI | Anthropic API 1モデル固定（Claude Sonnet） |
-| Layer A | E2Eテスト生成のみ（Playwright）。単体/結合は対象外 |
-| Layer B | AI探索あり（影響画面の巡回 + 異常検出） |
+| AI探索 | AI探索あり（影響画面の巡回 + 異常検出） |
 | 比較 | head側のみ実行（Before/After比較はなし。まず"head で動くか"だけ） |
 | レポート | HTMLレポート（ローカルで開く） |
 | CLI | `init` / `run` / `view` / `doctor` |
@@ -793,7 +734,6 @@ ai:
 - Baseline管理
 - 最小再現生成
 - record コマンド
-- 単体テスト / 結合テスト生成
 
 #### v0.1 の体験（ユーザーストーリー）
 
@@ -816,7 +756,6 @@ ghostqa run
 #    - AIが操作した動画
 #    - 各ステップのスクショ
 #    - 発見した異常（あれば）
-#    - 生成されたPlaywrightテストコード
 #    - console/networkログ
 ```
 
@@ -841,7 +780,7 @@ ghostqa run
 | Visual Diff | スクショのpixel diff + SSIM + ヒートマップ生成 |
 | Behavioral Diff | console/network のbase/head件数比較 |
 | GitHub Action | PRで自動実行 → Check Run + PRコメント + Artifacts |
-| タスク別モデル | diff解析/テスト生成/UI操作/要約を別モデルに振り分け可能 |
+| タスク別モデル | diff解析/UI操作/要約を別モデルに振り分け可能 |
 | 制約 (constraints) | no_payment / no_delete / no_external_links / allowed_domains / forbidden_selectors |
 | `validate` コマンド | .ghostqa.yml のバリデーション + 設定サマリー表示 |
 | `record` コマンド | headed ブラウザで手動操作を録画 |
@@ -879,12 +818,12 @@ ghostqa run --base origin/main --head HEAD
 | 優先度 | 項目 | 内容 |
 |--------|------|------|
 | 1 | **プロバイダー拡充** | Anthropic API / OpenAI API 直接対応 + Gemini CLI 対応。主要3社（Anthropic / OpenAI / Google）の API + CLI を全カバー |
-| 2 | **computer-use バックエンド** | スクショ → 座標クリックで任意の GUI アプリを操作。Layer B の observer/navigator を抽象化し、Playwright 実装と computer-use 実装を差し替え可能に。ghostQA 自身の CLI を ghostQA でテストするドッグフーディング |
-| 3 | **決定論リプレイモード** | Layer B の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
+| 2 | **computer-use バックエンド** | スクショ → 座標クリックで任意の GUI アプリを操作。Explorer の observer/navigator を抽象化し、Playwright 実装と computer-use 実装を差し替え可能に。ghostQA 自身の CLI を ghostQA でテストするドッグフーディング |
+| 3 | **決定論リプレイモード** | Explorer の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
 | 4 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
 | 5 | **Baseline 管理** | 承認済み Artifact Pack を保存し、次回比較の基準にする |
 | 6 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
-| 並行 | **テスト強化** | Layer B 周りのユニットテスト・E2E テスト拡充 |
+| 並行 | **テスト強化** | Explorer 周りのユニットテスト・E2E テスト拡充 |
 
 #### スコープ外（やらない）
 

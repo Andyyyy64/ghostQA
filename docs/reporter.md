@@ -46,13 +46,7 @@ const reportPath = await reporter.writeComparisonHtml(comparison);
     "files_changed": 3,
     "impact_areas": 2
   },
-  "layer_a": {
-    "tests_generated": 5,
-    "tests_passed": 4,
-    "tests_failed": 1,
-    "discoveries": [ ... ]
-  },
-  "layer_b": {
+  "explorer": {
     "steps_taken": 25,
     "pages_visited": 6,
     "discoveries": [ ... ]
@@ -96,8 +90,7 @@ const reportPath = await reporter.writeComparisonHtml(comparison);
 | Card | Content |
 |------|---------|
 | Diff | Files changed, impact areas identified |
-| Layer A | Tests passed/generated, failed count |
-| Layer B | Steps taken, pages visited |
+| Explorer | Steps taken, pages visited |
 | Cost | USD amount, or "Rate limited" with guidance text |
 
 Cost display logic:
@@ -115,7 +108,7 @@ Each discovery rendered as a card with:
   - Medium: `#d97706` (amber)
   - Low: `#2563eb` (blue)
   - Info: `#6b7280` (gray)
-- Title and source label (Layer A / Layer B)
+- Title and source label (Explorer / Console)
 - Description text
 - Expandable `<details>` sections for:
   - Steps to reproduce
@@ -157,11 +150,9 @@ HTML table comparing base and head:
 
 | Metric | Base | Head |
 |--------|------|------|
-| Layer A Tests | passed/total | passed/total |
-| Layer B Steps | count | count |
+| Explorer Steps | count | count |
 | Discoveries | count | count |
 
-Includes "N regressions" label if `test_regressions > 0`.
 
 **5. New Issues**
 

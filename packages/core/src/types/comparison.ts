@@ -29,23 +29,19 @@ export interface ComparisonResult {
 
   base: {
     run_id: string;
-    layer_a: RunResult["layer_a"];
-    layer_b: RunResult["layer_b"];
+    explorer: RunResult["explorer"];
     discoveries: Discovery[];
   };
 
   head: {
     run_id: string;
-    layer_a: RunResult["layer_a"];
-    layer_b: RunResult["layer_b"];
+    explorer: RunResult["explorer"];
     discoveries: Discovery[];
   };
 
   regressions: {
     new_discoveries: Discovery[];
     fixed_discoveries: Discovery[];
-    test_regressions: number;
-    test_fixes: number;
   };
 
   behavioral: BehavioralDiff;

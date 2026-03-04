@@ -17,8 +17,7 @@ type GhostQAConfig = z.infer<typeof GhostQAConfigSchema>;
 type AppConfig = z.infer<typeof AppConfigSchema>;
 type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;
 type AiConfig = z.infer<typeof AiConfigSchema>;
-type LayerAConfig = z.infer<typeof LayerAConfigSchema>;
-type LayerBConfig = z.infer<typeof LayerBConfigSchema>;
+type ExplorerConfig = z.infer<typeof ExplorerConfigSchema>;
 type ReporterConfig = z.infer<typeof ReporterConfigSchema>;
 ```
 
@@ -29,8 +28,7 @@ const AppConfigSchema: z.ZodObject<...>;
 const EnvironmentConfigSchema: z.ZodObject<...>;
 const AiProviderConfigSchema: z.ZodObject<...>;
 const AiConfigSchema: z.ZodObject<...>;
-const LayerAConfigSchema: z.ZodObject<...>;
-const LayerBConfigSchema: z.ZodObject<...>;
+const ExplorerConfigSchema: z.ZodObject<...>;
 const ConstraintsConfigSchema: z.ZodObject<...>;
 const ReporterConfigSchema: z.ZodObject<...>;
 const GhostQAConfigSchema: z.ZodObject<...>;
@@ -74,10 +72,10 @@ A single bug or anomaly found during testing.
 
 ```typescript
 type Severity = "critical" | "high" | "medium" | "low" | "info";
-type DiscoverySource = "layer-a" | "layer-b";
+type DiscoverySource = "explorer" | "console";
 
 interface Discovery {
-  id: string;                    // e.g., "la-abc12345" or "lb-ai-xyz789"
+  id: string;                    // e.g., "ex-ai-xyz789" or "ex-console-abc123"
   source: DiscoverySource;
   severity: Severity;
   title: string;
@@ -95,9 +93,8 @@ interface Discovery {
 
 | Pattern | Source |
 |---------|--------|
-| `la-<nanoid8>` | Layer A test failure |
-| `lb-console-<nanoid8>` | Layer B console error detection |
-| `lb-ai-<nanoid8>` | Layer B AI-reported discovery |
+| `ex-console-<nanoid8>` | Console error detection |
+| `ex-ai-<nanoid8>` | AI-reported discovery |
 
 ### Verdict
 
@@ -121,13 +118,7 @@ interface RunResult {
     files_changed: number;
     impact_areas: number;
   };
-  layer_a: {
-    tests_generated: number;
-    tests_passed: number;
-    tests_failed: number;
-    discoveries: Discovery[];
-  };
-  layer_b: {
+  explorer: {
     steps_taken: number;
     pages_visited: number;
     discoveries: Discovery[];
@@ -192,14 +183,12 @@ interface ComparisonResult {
   };
   base: {
     run_id: string;
-    layer_a: RunResult["layer_a"];
-    layer_b: RunResult["layer_b"];
+    explorer: RunResult["explorer"];
     discoveries: Discovery[];
   };
   head: {
     run_id: string;
-    layer_a: RunResult["layer_a"];
-    layer_b: RunResult["layer_b"];
+    explorer: RunResult["explorer"];
     discoveries: Discovery[];
   };
   regressions: {
@@ -247,12 +236,12 @@ interface AiProvider {
 **File:** `packages/core/src/ai/client.ts`
 
 ```typescript
-type AiTask = "diff_analysis" | "test_generation" | "ui_control" | "triage";
+type AiTask = "diff_analysis" | "ui_control" | "triage";
 ```
 
-## Layer B Types
+## Explorer Types
 
-**File:** `packages/core/src/layer-b/observer.ts`
+**File:** `packages/core/src/explorer/observer.ts`
 
 ```typescript
 interface PageState {
@@ -265,7 +254,7 @@ interface PageState {
 }
 ```
 
-**File:** `packages/core/src/layer-b/navigator.ts`
+**File:** `packages/core/src/explorer/navigator.ts`
 
 ```typescript
 type ActionType = "click" | "type" | "scroll" | "wait" | "back" | "goto" | "hover" | "select";
@@ -281,7 +270,7 @@ interface BrowserAction {
 }
 ```
 
-**File:** `packages/core/src/layer-b/planner.ts`
+**File:** `packages/core/src/explorer/planner.ts`
 
 ```typescript
 interface PlanResult {

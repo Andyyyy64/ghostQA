@@ -15,12 +15,7 @@ ai:
   cli:
     command: claude
 
-layer_a:
-  enabled: true
-  max_tests: 3
-  timeout_per_test: 15000
-
-layer_b:
+explorer:
   enabled: true
   max_steps: 50
   max_duration: 600000

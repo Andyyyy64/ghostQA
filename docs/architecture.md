@@ -69,11 +69,7 @@ packages/core/src/
 │   └── manager.ts        # Docker container or native no-op
 ├── app-runner/           # Application lifecycle
 │   └── runner.ts         # Build, start, healthcheck, stop
-├── layer-a/              # E2E test generation + execution
-│   ├── test-generator.ts # AI generates Playwright test code
-│   ├── test-runner.ts    # Executes generated tests via Playwright CLI
-│   └── runner.ts         # Orchestrates generator + runner
-├── layer-b/              # AI browser exploration
+├── explorer/             # AI browser exploration
 │   ├── observer.ts       # Page state capture (AX tree + screenshot)
 │   ├── navigator.ts      # Browser action execution + constraint checking
 │   ├── planner.ts        # AI decides next action (with JSON recovery)
@@ -116,12 +112,12 @@ packages/core/src/
                                  │
                     ┌────────────┴───────────┐
                     │                        │
-              ┌─────▼─────┐          ┌──────▼──────┐
-              │  Layer A   │          │   Layer B    │
-              │ Test Gen   │          │ AI Explore   │
-              │ + Execute  │          │ observe →    │
-              │            │          │ plan → act   │
-              └─────┬──────┘          └──────┬──────┘
+                    │                ┌───────▼──────┐
+                    │                │   Explorer    │
+                    │                │  AI Explore   │
+                    │                │  observe →    │
+                    │                │  plan → act   │
+                    │                └───────┬──────┘
                     │                        │
                     │    Discovery[]          │
                     └────────────┬───────────┘
@@ -134,13 +130,13 @@ packages/core/src/
 
 ## Key Design Decisions
 
-### Two-Layer Testing
+### AI Exploration
 
-Layer A produces deterministic, repeatable tests. Layer B does creative, exploratory testing. Together they cover both structured regression detection and open-ended bug discovery.
+The explorer does creative, autonomous testing. An AI agent navigates the running application in a real browser, observing page state, planning actions, and discovering bugs through direct interaction.
 
 ### Diff-Driven Exploration
 
-There are no hardcoded "flows" or test scenarios. The AI reads the actual git diff, estimates which areas are impacted, and focuses testing on those areas. This means ghostQA adapts to every change automatically.
+There are no hardcoded "flows" or test scenarios. The AI reads the actual git diff, estimates which areas are impacted, and focuses exploration on those areas. This means ghostQA adapts to every change automatically.
 
 ### Provider Abstraction
 
@@ -148,7 +144,7 @@ The `AiProvider` interface allows swapping AI backends without changing business
 
 ### AX Tree over DOM
 
-Layer B uses Playwright's accessibility tree snapshot (`ariaSnapshot()`) instead of raw DOM. This is 5-20x more compact than full DOM, provides semantic meaning (roles, names, states), and gives the AI enough information to navigate without wasting tokens.
+The explorer uses Playwright's accessibility tree snapshot (`ariaSnapshot()`) instead of raw DOM. This is 5-20x more compact than full DOM, provides semantic meaning (roles, names, states), and gives the AI enough information to navigate without wasting tokens.
 
 ### Budget as a First-Class Concept
 

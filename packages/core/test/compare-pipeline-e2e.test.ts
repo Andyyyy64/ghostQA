@@ -106,7 +106,7 @@ describe("compare pipeline e2e", { timeout: 600_000 }, () => {
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("ghostQA Comparison Report");
     expect(html).toContain("Before / After");
-    expect(html).toContain("Layer A");
+    expect(html).toContain("Exploration Steps");
     expect(html).toContain("Verdict:");
   });
 

@@ -1,8 +1,8 @@
-# Layer B: AI Exploration
+# Explorer: AI Exploration
 
 ## Overview
 
-Layer B is the exploratory testing layer. An AI agent autonomously navigates the running application in a real browser, observing page state, planning actions, executing them, and reporting any anomalies it discovers.
+The Explorer is the AI-powered exploratory testing component. An AI agent autonomously navigates the running application in a real browser, observing page state, planning actions, executing them, and reporting any anomalies it discovers.
 
 ```
                     ┌──────────┐
@@ -32,7 +32,7 @@ Layer B is the exploratory testing layer. An AI agent autonomously navigates the
 
 ### Observer
 
-**File:** `packages/core/src/layer-b/observer.ts`
+**File:** `packages/core/src/explorer/observer.ts`
 
 Captures the current page state for the AI.
 
@@ -56,7 +56,7 @@ Captures the current page state for the AI.
 
 ### Navigator
 
-**File:** `packages/core/src/layer-b/navigator.ts`
+**File:** `packages/core/src/explorer/navigator.ts`
 
 Executes browser actions and enforces constraints.
 
@@ -89,7 +89,7 @@ Constraint violations throw an error (caught by the action loop, not fatal).
 
 ### Planner
 
-**File:** `packages/core/src/layer-b/planner.ts`
+**File:** `packages/core/src/explorer/planner.ts`
 
 The AI brain that decides what to do next.
 
@@ -161,7 +161,7 @@ After any parse failure, a JSON reminder is injected into the conversation histo
 
 ### Discoverer
 
-**File:** `packages/core/src/layer-b/discoverer.ts`
+**File:** `packages/core/src/explorer/discoverer.ts`
 
 Detects bugs from two sources:
 
@@ -186,7 +186,7 @@ Creates a `Discovery` from the planner's `discovery` field, with screenshot evid
 
 ### Guardrails
 
-**File:** `packages/core/src/layer-b/guardrails.ts`
+**File:** `packages/core/src/explorer/guardrails.ts`
 
 Enforces exploration limits:
 
@@ -213,14 +213,14 @@ Maintains a `recentActions` buffer (max 10). When `length >= 6`, checks if `acti
 
 ## Action Loop
 
-**File:** `packages/core/src/layer-b/action-loop.ts`
+**File:** `packages/core/src/explorer/action-loop.ts`
 
-`LayerBRunner` orchestrates all Layer B components:
+`ExplorerRunner` orchestrates all explorer components:
 
 ```typescript
 constructor(ai: AiClient, config: GhostQAConfig, recorder: Recorder)
 
-async run(page: Page, analysis: DiffAnalysis, onProgress?): Promise<LayerBResult>
+async run(page: Page, analysis: DiffAnalysis, onProgress?): Promise<ExplorerResult>
 ```
 
 ### Loop Flow

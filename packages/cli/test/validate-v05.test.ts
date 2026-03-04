@@ -109,11 +109,7 @@ ai:
       model: gemini-2.0-flash
       api_key_env: GEMINI_API_KEY
 
-layer_a:
-  enabled: true
-  max_tests: 15
-
-layer_b:
+explorer:
   enabled: true
   max_steps: 80
   max_duration: 600000

@@ -18,7 +18,7 @@ import type { RunResult, Discovery } from "../src/types/discovery";
 function makeDiscovery(overrides: Partial<Discovery> = {}): Discovery {
   return {
     id: "d-1",
-    source: "layer-b",
+    source: "explorer",
     severity: "high",
     title: "Test bug",
     description: "A test bug found during exploration",
@@ -36,8 +36,7 @@ function makeRunResult(overrides: Partial<RunResult> = {}): RunResult {
     finished_at: Date.now(),
     config: {},
     diff_analysis: { summary: "Changed login form", files_changed: 3, impact_areas: 2 },
-    layer_a: { tests_generated: 5, tests_passed: 5, tests_failed: 0, discoveries: [] },
-    layer_b: { steps_taken: 15, pages_visited: 4, discoveries: [] },
+    explorer: { steps_taken: 15, pages_visited: 4, discoveries: [] },
     cost: { total_usd: 0.5, input_tokens: 2000, output_tokens: 800, is_rate_limited: false },
     discoveries: [],
     ...overrides,
@@ -139,14 +138,14 @@ describe("comparison report e2e", () => {
     expect(html).not.toContain("New Issues");
   });
 
-  it("includes Before/After comparison table with Layer A stats", async () => {
+  it("includes Before/After comparison table with exploration stats", async () => {
     const baseResult = makeRunResult({
       run_id: "run-base",
-      layer_a: { tests_generated: 8, tests_passed: 8, tests_failed: 0, discoveries: [] },
+      explorer: { steps_taken: 15, pages_visited: 4, discoveries: [] },
     });
     const headResult = makeRunResult({
       run_id: "run-head",
-      layer_a: { tests_generated: 8, tests_passed: 6, tests_failed: 2, discoveries: [] },
+      explorer: { steps_taken: 20, pages_visited: 6, discoveries: [] },
     });
 
     const comparator = new Comparator();
@@ -158,10 +157,7 @@ describe("comparison report e2e", () => {
 
     // Before/After table
     expect(html).toContain("Before / After");
-    expect(html).toContain("Layer A");
-    expect(html).toContain("8/8"); // base
-    expect(html).toContain("6/8"); // head
-    expect(html).toContain("2 regressions");
+    expect(html).toContain("Exploration Steps");
   });
 
   it("comparison.json can be written alongside HTML report", async () => {

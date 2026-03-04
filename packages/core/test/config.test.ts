@@ -33,8 +33,7 @@ describe("config", () => {
       const content = await readFile(path, "utf-8");
       expect(content).toContain("app:");
       expect(content).toContain("ai:");
-      expect(content).toContain("layer_a:");
-      expect(content).toContain("layer_b:");
+      expect(content).toContain("explorer:");
     });
 
     it("generated config is loadable", async () => {
@@ -42,8 +41,7 @@ describe("config", () => {
       const config = await loadConfig(tmpDir);
       expect(config.app.name).toBe("my-app");
       expect(config.ai.provider).toBe("gemini");
-      expect(config.layer_a.enabled).toBe(true);
-      expect(config.layer_b.enabled).toBe(true);
+      expect(config.explorer.enabled).toBe(true);
     });
   });
 
@@ -63,7 +61,7 @@ describe("config", () => {
       expect(config.app.name).toBe("test");
       expect(config.environment.mode).toBe("native");
       expect(config.ai.max_budget_usd).toBe(1.0);
-      expect(config.layer_b.max_steps).toBe(50);
+      expect(config.explorer.max_steps).toBe(50);
       expect(config.reporter.output_dir).toBe(".ghostqa-runs");
     });
   });

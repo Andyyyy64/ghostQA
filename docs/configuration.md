@@ -71,8 +71,7 @@ Override the AI provider for specific pipeline tasks. Each key accepts the same 
 | Task Key | Pipeline Stage |
 |----------|---------------|
 | `diff_analysis` | Git diff → impact area estimation |
-| `test_generation` | Layer A: generating Playwright test code |
-| `ui_control` | Layer B: deciding browser actions (vision required) |
+| `ui_control` | Explorer: deciding browser actions (vision required) |
 | `triage` | Result summarization and report generation |
 
 Example:
@@ -92,23 +91,13 @@ ai:
       model: gemini-2.0-flash
 ```
 
-### `layer_a` (optional)
-
-E2E test generation settings.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable Layer A |
-| `max_tests` | number | `10` | Maximum number of generated tests |
-| `timeout_per_test` | number | `30000` | Per-test execution timeout in ms |
-
-### `layer_b` (optional)
+### `explorer` (optional)
 
 AI exploration settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable Layer B |
+| `enabled` | boolean | `true` | Enable AI exploration |
 | `max_steps` | number | `50` | Maximum browser actions |
 | `max_duration` | number | `300000` | Maximum exploration time in ms (5 minutes) |
 | `viewport.width` | number | `1280` | Browser viewport width |
@@ -245,11 +234,7 @@ ai:
       cli:
         command: claude
 
-layer_a:
-  enabled: true
-  max_tests: 15
-
-layer_b:
+explorer:
   enabled: true
   max_steps: 80
   max_duration: 600000

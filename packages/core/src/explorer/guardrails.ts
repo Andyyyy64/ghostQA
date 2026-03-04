@@ -1,6 +1,6 @@
 import consola from "consola";
 import type { CostTracker, BudgetExceededError } from "../ai/cost-tracker";
-import type { LayerBConfig } from "../types/config";
+import type { ExplorerConfig } from "../types/config";
 
 export class Guardrails {
   private stepCount = 0;
@@ -9,7 +9,7 @@ export class Guardrails {
   private recentActions: string[] = [];
 
   constructor(
-    private config: LayerBConfig,
+    private config: ExplorerConfig,
     private costTracker: CostTracker
   ) {
     this.startTime = Date.now();

@@ -39,8 +39,7 @@ Options:
   --diff <ref>           Git diff reference (default: "HEAD~1")
   --base <ref>           Base git ref for Before/After comparison
   --head <ref>           Head git ref (default: "HEAD")
-  --no-layer-a           Skip Layer A (test generation)
-  --no-layer-b           Skip Layer B (AI exploration)
+  --no-explore           Skip AI exploration
   --budget <usd>         Override max AI budget in USD
 ```
 
@@ -125,8 +124,7 @@ Options:
 ✔ Configuration is valid
   App: my-app
   AI: gemini (gemini-2.0-flash)
-  Layer A: enabled
-  Layer B: enabled
+  Explorer: enabled
   Constraints: no_payment, no_delete
 ```
 

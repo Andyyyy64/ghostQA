@@ -14,11 +14,8 @@ async function run(): Promise<void> {
     if (budget) {
       config.ai.max_budget_usd = parseFloat(budget);
     }
-    if (core.getInput("layer-a") === "false") {
-      config.layer_a.enabled = false;
-    }
-    if (core.getInput("layer-b") === "false") {
-      config.layer_b.enabled = false;
+    if (core.getInput("explore") === "false") {
+      config.explorer.enabled = false;
     }
 
     const baseInput = core.getInput("base");
@@ -136,14 +133,12 @@ function formatComparisonComment(result: {
   regressions: {
     new_discoveries: Array<{ title: string; severity: string; description: string }>;
     fixed_discoveries: Array<{ title: string }>;
-    test_regressions: number;
-    test_fixes: number;
   };
   behavioral: {
     console_errors: { base: number; head: number; delta: number };
   };
-  base: { layer_a: { tests_passed: number; tests_generated: number }; discoveries: unknown[] };
-  head: { layer_a: { tests_passed: number; tests_generated: number }; discoveries: unknown[] };
+  base: { explorer: { steps_taken: number; pages_visited: number }; discoveries: unknown[] };
+  head: { explorer: { steps_taken: number; pages_visited: number }; discoveries: unknown[] };
 }): string {
   const icon =
     result.verdict === "pass"
@@ -162,7 +157,7 @@ function formatComparisonComment(result: {
   body += `### Before / After\n\n`;
   body += `| | Base | Head | Delta |\n`;
   body += `|---|---|---|---|\n`;
-  body += `| Layer A | ${result.base.layer_a.tests_passed}/${result.base.layer_a.tests_generated} | ${result.head.layer_a.tests_passed}/${result.head.layer_a.tests_generated} | ${result.regressions.test_regressions > 0 ? `:x: ${result.regressions.test_regressions} regressions` : ":white_check_mark: OK"} |\n`;
+  body += `| Exploration Steps | ${result.base.explorer.steps_taken} | ${result.head.explorer.steps_taken} | — |\n`;
   body += `| Discoveries | ${result.base.discoveries.length} | ${result.head.discoveries.length} | ${result.regressions.new_discoveries.length} new, ${result.regressions.fixed_discoveries.length} fixed |\n`;
   body += `| Console errors | ${result.behavioral.console_errors.base} | ${result.behavioral.console_errors.head} | ${result.behavioral.console_errors.delta > 0 ? `:warning: +${result.behavioral.console_errors.delta}` : "OK"} |\n\n`;
 

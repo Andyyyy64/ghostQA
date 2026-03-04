@@ -36,12 +36,7 @@ ai:
   #   command: claude    # or: codex, or any CLI tool path
   #   args: []
 
-layer_a:
-  enabled: true
-  max_tests: 10
-  timeout_per_test: 30000
-
-layer_b:
+explorer:
   enabled: true
   max_steps: 50
   max_duration: 300000

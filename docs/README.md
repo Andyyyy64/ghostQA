@@ -7,8 +7,7 @@
 | [Architecture Overview](./architecture.md) | System design, monorepo structure, data flow, module responsibilities |
 | [Pipeline](./pipeline.md) | Step-by-step execution flow for single runs and Before/After comparisons |
 | [AI System](./ai-system.md) | Provider abstraction, Gemini/Anthropic/OpenAI/CLI backends, task routing, cost tracking, JSON parsing |
-| [Layer A: Test Generation](./layer-a.md) | How AI generates Playwright E2E tests and how they are executed |
-| [Layer B: AI Exploration](./layer-b.md) | Observe-plan-act loop, browser navigation, discovery detection, guardrails |
+| [Explorer: AI Exploration](./explorer.md) | Observe-plan-act loop, browser navigation, discovery detection, guardrails |
 | [Comparator](./comparator.md) | Before/After comparison — discovery diff, visual diff, behavioral diff |
 | [Reporter](./reporter.md) | HTML/JSON report generation for single runs and comparisons |
 | [Configuration](./configuration.md) | Full `.ghostqa.yml` schema reference with all fields, defaults, and examples |
@@ -24,4 +23,4 @@
 - **Want to configure ghostQA?** See [Configuration](./configuration.md)
 - **Want to understand the AI layer?** Read [AI System](./ai-system.md)
 - **Want to add a new AI provider?** See the provider interface in [AI System](./ai-system.md#provider-interface)
-- **Want to understand how bugs are found?** Read [Layer A](./layer-a.md) and [Layer B](./layer-b.md)
+- **Want to understand how bugs are found?** Read [Explorer](./explorer.md)

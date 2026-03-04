@@ -116,7 +116,7 @@ export class DiffAnalyzer {
   private fallbackImpactAreas(files: DiffFile[]): ImpactArea[] {
     if (files.length === 0) return [];
 
-    // Generate a generic impact area so Layer A/B still have something to work with
+    // Generate a generic impact area so the explorer still has something to work with
     return [
       {
         area: "Application",

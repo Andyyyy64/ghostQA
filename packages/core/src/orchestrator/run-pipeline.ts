@@ -9,8 +9,7 @@ import { BudgetExceededError } from "../ai/cost-tracker";
 import { DiffAnalyzer } from "../diff-analyzer/analyzer";
 import { setupEnvironment } from "../environment/manager";
 import { AppRunner } from "../app-runner/runner";
-import { LayerARunner } from "../layer-a/runner";
-import { LayerBRunner } from "../layer-b/action-loop";
+import { Explorer } from "../explorer/action-loop";
 import { Recorder } from "../recorder/recorder";
 import { Reporter } from "../reporter/reporter";
 
@@ -74,13 +73,7 @@ export async function runPipeline(
     finished_at: 0,
     config: config as unknown as Record<string, unknown>,
     diff_analysis: { summary: "", files_changed: 0, impact_areas: 0 },
-    layer_a: {
-      tests_generated: 0,
-      tests_passed: 0,
-      tests_failed: 0,
-      discoveries: [],
-    },
-    layer_b: { steps_taken: 0, pages_visited: 0, discoveries: [] },
+    explorer: { steps_taken: 0, pages_visited: 0, discoveries: [] },
     cost: { total_usd: 0, input_tokens: 0, output_tokens: 0, is_rate_limited: false },
     discoveries: [],
   };
@@ -118,7 +111,7 @@ export async function runPipeline(
       activeBrowser = browser;
 
       const context = await browser.newContext({
-        viewport: config.layer_b.viewport,
+        viewport: config.explorer.viewport,
         ...recorder.contextOptions(),
       });
       activeContext = context;
@@ -126,31 +119,17 @@ export async function runPipeline(
       const page = await context.newPage();
 
       try {
-        // 5. Layer A
-        if (config.layer_a.enabled && analysis.impact_areas.length > 0) {
-          onProgress?.("Layer A: Generating tests...");
-          const layerA = new LayerARunner(ai, config, outputDir);
-          const layerAResult = await layerA.run(analysis);
-          result.layer_a = {
-            tests_generated: layerAResult.tests.length,
-            tests_passed: layerAResult.tests.filter((t) => t.passed).length,
-            tests_failed: layerAResult.tests.filter((t) => !t.passed).length,
-            discoveries: layerAResult.discoveries,
+        // 5. AI Exploration
+        if (config.explorer.enabled && analysis.impact_areas.length > 0) {
+          onProgress?.("Exploring...");
+          const explorer = new Explorer(ai, config, recorder);
+          const explorerResult = await explorer.run(page, analysis, onProgress);
+          result.explorer = {
+            steps_taken: explorerResult.steps_taken,
+            pages_visited: explorerResult.pages_visited,
+            discoveries: explorerResult.discoveries,
           };
-          result.discoveries.push(...layerAResult.discoveries);
-        }
-
-        // 6. Layer B
-        if (config.layer_b.enabled && analysis.impact_areas.length > 0) {
-          onProgress?.("Layer B: AI exploration...");
-          const layerB = new LayerBRunner(ai, config, recorder);
-          const layerBResult = await layerB.run(page, analysis, onProgress);
-          result.layer_b = {
-            steps_taken: layerBResult.steps_taken,
-            pages_visited: layerBResult.pages_visited,
-            discoveries: layerBResult.discoveries,
-          };
-          result.discoveries.push(...layerBResult.discoveries);
+          result.discoveries.push(...explorerResult.discoveries);
         }
       } finally {
         activeContext = null;

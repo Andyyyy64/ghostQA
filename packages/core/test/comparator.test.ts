@@ -10,7 +10,7 @@ function makeDiscovery(
 ): Discovery {
   return {
     id: "d-1",
-    source: "layer-b",
+    source: "explorer",
     severity: "high",
     title: "Test bug",
     description: "A test bug description",
@@ -30,13 +30,7 @@ function makeRunResult(
     finished_at: 2000,
     config: {},
     diff_analysis: { summary: "test", files_changed: 1, impact_areas: 1 },
-    layer_a: {
-      tests_generated: 5,
-      tests_passed: 5,
-      tests_failed: 0,
-      discoveries: [],
-    },
-    layer_b: { steps_taken: 10, pages_visited: 3, discoveries: [] },
+    explorer: { steps_taken: 10, pages_visited: 3, discoveries: [] },
     cost: { total_usd: 0.5, input_tokens: 1000, output_tokens: 500, is_rate_limited: false },
     discoveries: [],
     ...overrides,
@@ -83,50 +77,10 @@ describe("Comparator", () => {
     expect(result.regressions.fixed_discoveries).toHaveLength(0);
   });
 
-  it("detects test regressions", () => {
-    const base = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 5, tests_failed: 0, discoveries: [] },
-    });
-    const head = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 3, tests_failed: 2, discoveries: [] },
-    });
-
-    const result = comparator.compare(base, head, "main", "HEAD");
-
-    expect(result.regressions.test_regressions).toBe(2);
-    expect(result.regressions.test_fixes).toBe(0);
-  });
-
-  it("detects test fixes", () => {
-    const base = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 3, tests_failed: 2, discoveries: [] },
-    });
-    const head = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 5, tests_failed: 0, discoveries: [] },
-    });
-
-    const result = comparator.compare(base, head, "main", "HEAD");
-
-    expect(result.regressions.test_fixes).toBe(2);
-    expect(result.regressions.test_regressions).toBe(0);
-  });
-
   it("verdict is FAIL for new critical/high discoveries", () => {
     const base = makeRunResult();
     const head = makeRunResult({
       discoveries: [makeDiscovery({ severity: "critical", title: "crash" })],
-    });
-
-    const result = comparator.compare(base, head, "main", "HEAD");
-    expect(result.verdict).toBe("fail");
-  });
-
-  it("verdict is FAIL for test regressions", () => {
-    const base = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 5, tests_failed: 0, discoveries: [] },
-    });
-    const head = makeRunResult({
-      layer_a: { tests_generated: 5, tests_passed: 4, tests_failed: 1, discoveries: [] },
     });
 
     const result = comparator.compare(base, head, "main", "HEAD");

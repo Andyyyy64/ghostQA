@@ -35,17 +35,6 @@ new_discoveries = head.filter(d => !baseTitles.has(d.title.toLowerCase()));
 fixed_discoveries = base.filter(d => !headTitles.has(d.title.toLowerCase()));
 ```
 
-## Test Regression Detection
-
-Compares Layer A test failure counts:
-
-```typescript
-test_regressions = head.layer_a.tests_failed - base.layer_a.tests_failed;
-test_fixes = base.layer_a.tests_failed - head.layer_a.tests_failed;
-```
-
-Positive `test_regressions` means more tests are failing in head than in base.
-
 ## Behavioral Diff
 
 `compareBehavioral(baseResult, headResult)`
@@ -122,7 +111,6 @@ Returns `VisualDiffEntry[]`:
 | Condition | Verdict |
 |-----------|---------|
 | Any new discovery with `critical` or `high` severity | `fail` |
-| `test_regressions > 0` | `fail` |
 | Any new discovery with `medium` severity | `warn` |
 | `console_errors.delta > 0` | `warn` |
 | None of the above | `pass` |
@@ -138,8 +126,8 @@ Returns `VisualDiffEntry[]`:
   started_at: number,
   finished_at: number,
   diff_analysis: { summary, files_changed, impact_areas },
-  base: { run_id, layer_a, layer_b, discoveries },
-  head: { run_id, layer_a, layer_b, discoveries },
+  base: { run_id, explorer, discoveries },
+  head: { run_id, explorer, discoveries },
   regressions: {
     new_discoveries: Discovery[],
     fixed_discoveries: Discovery[],

@@ -100,8 +100,8 @@ describe("AiClient routing", () => {
 
     const client = new AiClient(config);
 
-    // test_generation has no routing config, should use default
-    client.useTask("test_generation");
+    // exploration has no routing config, should use default
+    client.useTask("exploration");
     const result = await client.chat("system", [{ role: "user", content: "test" }]);
     expect(result).toBe("response-from-gemini-default");
   });

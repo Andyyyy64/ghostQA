@@ -1,5 +1,5 @@
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
-export type DiscoverySource = "layer-a" | "layer-b";
+export type DiscoverySource = "explorer" | "console";
 
 export interface Discovery {
   id: string;
@@ -28,13 +28,7 @@ export interface RunResult {
     files_changed: number;
     impact_areas: number;
   };
-  layer_a: {
-    tests_generated: number;
-    tests_passed: number;
-    tests_failed: number;
-    discoveries: Discovery[];
-  };
-  layer_b: {
+  explorer: {
     steps_taken: number;
     pages_visited: number;
     discoveries: Discovery[];

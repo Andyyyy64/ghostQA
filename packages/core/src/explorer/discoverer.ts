@@ -30,8 +30,8 @@ export class Discoverer {
       if (!isKnownError && !log.startsWith("[pageerror]")) continue;
 
       discoveries.push({
-        id: `lb-console-${nanoid(8)}`,
-        source: "layer-b",
+        id: `console-${nanoid(8)}`,
+        source: "explorer",
         severity: log.startsWith("[pageerror]") ? "high" : "medium",
         title: `Console error on ${state.url}`,
         description: log.slice(0, 500),
@@ -55,8 +55,8 @@ export class Discoverer {
     screenshotPath?: string
   ): Discovery {
     return {
-      id: `lb-ai-${nanoid(8)}`,
-      source: "layer-b",
+      id: `ai-${nanoid(8)}`,
+      source: "explorer",
       severity: plan.severity,
       title: plan.title,
       description: plan.description,

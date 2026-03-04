@@ -11,13 +11,13 @@ import { Planner } from "./planner";
 import { Discoverer } from "./discoverer";
 import { Guardrails } from "./guardrails";
 
-export interface LayerBResult {
+export interface ExplorerResult {
   steps_taken: number;
   pages_visited: number;
   discoveries: Discovery[];
 }
 
-export class LayerBRunner {
+export class Explorer {
   constructor(
     private ai: AiClient,
     private config: GhostQAConfig,
@@ -28,15 +28,15 @@ export class LayerBRunner {
     page: Page,
     analysis: DiffAnalysis,
     onProgress?: (msg: string) => void
-  ): Promise<LayerBResult> {
-    consola.info("=== Layer B: AI Exploration ===");
+  ): Promise<ExplorerResult> {
+    consola.info("=== AI Exploration ===");
 
     const observer = new Observer(this.recorder);
     const navigator = new Navigator(this.config.constraints);
     const planner = new Planner(this.ai, analysis);
     const discoverer = new Discoverer();
     const guardrails = new Guardrails(
-      this.config.layer_b,
+      this.config.explorer,
       this.ai.costTracker
     );
 
@@ -62,7 +62,7 @@ export class LayerBRunner {
       // Observe
       const state = await observer.observe(page);
       onProgress?.(
-        `Exploring: ${state.url} (step ${guardrails.stats.steps_taken + 1}/${this.config.layer_b.max_steps})`
+        `Exploring: ${state.url} (step ${guardrails.stats.steps_taken + 1}/${this.config.explorer.max_steps})`
       );
 
       // Check console for errors
@@ -119,7 +119,7 @@ export class LayerBRunner {
 
     const stats = guardrails.stats;
     consola.info(
-      `Layer B: ${stats.steps_taken} steps, ${stats.pages_visited} pages, ${discoveries.length} discoveries`
+      `Exploration: ${stats.steps_taken} steps, ${stats.pages_visited} pages, ${discoveries.length} discoveries`
     );
 
     return {

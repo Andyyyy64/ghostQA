@@ -6,7 +6,7 @@ import { CliProvider } from "./cli-provider";
 import { CostTracker } from "./cost-tracker";
 import type { AiConfig } from "../types/config";
 
-export type AiTask = "diff_analysis" | "test_generation" | "ui_control" | "triage";
+export type AiTask = "diff_analysis" | "exploration" | "ui_control" | "triage";
 
 export class AiClient {
   private defaultProvider: AiProvider;

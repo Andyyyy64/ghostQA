@@ -55,20 +55,14 @@ export const AiConfigSchema = AiProviderConfigSchema.extend({
   routing: z
     .object({
       diff_analysis: AiProviderConfigSchema.optional(),
-      test_generation: AiProviderConfigSchema.optional(),
+      exploration: AiProviderConfigSchema.optional(),
       ui_control: AiProviderConfigSchema.optional(),
       triage: AiProviderConfigSchema.optional(),
     })
     .default({}),
 });
 
-export const LayerAConfigSchema = z.object({
-  enabled: z.boolean().default(true),
-  max_tests: z.number().default(10),
-  timeout_per_test: z.number().default(30000).describe("Timeout per test in ms"),
-});
-
-export const LayerBConfigSchema = z.object({
+export const ExplorerConfigSchema = z.object({
   enabled: z.boolean().default(true),
   max_steps: z.number().default(50),
   max_duration: z.number().default(300000).describe("Max duration in ms"),
@@ -99,8 +93,7 @@ export const GhostQAConfigSchema = z.object({
   app: AppConfigSchema,
   environment: EnvironmentConfigSchema.default({}),
   ai: AiConfigSchema.default({}),
-  layer_a: LayerAConfigSchema.default({}),
-  layer_b: LayerBConfigSchema.default({}),
+  explorer: ExplorerConfigSchema.default({}),
   reporter: ReporterConfigSchema.default({}),
   constraints: ConstraintsConfigSchema.default({}),
 });
@@ -109,6 +102,5 @@ export type GhostQAConfig = z.infer<typeof GhostQAConfigSchema>;
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;
 export type AiConfig = z.infer<typeof AiConfigSchema>;
-export type LayerAConfig = z.infer<typeof LayerAConfigSchema>;
-export type LayerBConfig = z.infer<typeof LayerBConfigSchema>;
+export type ExplorerConfig = z.infer<typeof ExplorerConfigSchema>;
 export type ReporterConfig = z.infer<typeof ReporterConfigSchema>;

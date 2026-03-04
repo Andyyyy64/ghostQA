@@ -146,14 +146,6 @@ export class Reporter {
 
     <div class="stats">
       <div class="stat-card">
-        <div class="label">Test Regressions</div>
-        <div class="value ${c.regressions.test_regressions > 0 ? "delta-up" : "delta-zero"}">${c.regressions.test_regressions > 0 ? "+" : ""}${c.regressions.test_regressions}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Tests Fixed</div>
-        <div class="value ${c.regressions.test_fixes > 0 ? "delta-down" : "delta-zero"}">${c.regressions.test_fixes > 0 ? "+" : ""}${c.regressions.test_fixes}</div>
-      </div>
-      <div class="stat-card">
         <div class="label">Console Errors</div>
         <div class="value ${c.behavioral.console_errors.delta > 0 ? "delta-up" : c.behavioral.console_errors.delta < 0 ? "delta-down" : "delta-zero"}">${c.behavioral.console_errors.base} → ${c.behavioral.console_errors.head} (${c.behavioral.console_errors.delta > 0 ? "+" : ""}${c.behavioral.console_errors.delta})</div>
       </div>
@@ -168,15 +160,9 @@ export class Reporter {
       <table class="comparison-table">
         <tr><th></th><th>Base</th><th>Head</th><th>Delta</th></tr>
         <tr>
-          <td>Layer A Tests</td>
-          <td>${c.base.layer_a.tests_passed}/${c.base.layer_a.tests_generated}</td>
-          <td>${c.head.layer_a.tests_passed}/${c.head.layer_a.tests_generated}</td>
-          <td class="${c.regressions.test_regressions > 0 ? "delta-up" : "delta-zero"}">${c.regressions.test_regressions > 0 ? `${c.regressions.test_regressions} regressions` : "No regressions"}</td>
-        </tr>
-        <tr>
-          <td>Layer B Steps</td>
-          <td>${c.base.layer_b.steps_taken}</td>
-          <td>${c.head.layer_b.steps_taken}</td>
+          <td>Exploration Steps</td>
+          <td>${c.base.explorer.steps_taken}</td>
+          <td>${c.head.explorer.steps_taken}</td>
           <td>-</td>
         </tr>
         <tr>
@@ -297,14 +283,9 @@ export class Reporter {
         <div class="label">${result.diff_analysis.impact_areas} impact areas</div>
       </div>
       <div class="stat-card">
-        <div class="label">Layer A (E2E Tests)</div>
-        <div class="value">${result.layer_a.tests_passed}/${result.layer_a.tests_generated}</div>
-        <div class="label">${result.layer_a.tests_failed} failed</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Layer B (Exploration)</div>
-        <div class="value">${result.layer_b.steps_taken} steps</div>
-        <div class="label">${result.layer_b.pages_visited} pages visited</div>
+        <div class="label">Exploration</div>
+        <div class="value">${result.explorer.steps_taken} steps</div>
+        <div class="label">${result.explorer.pages_visited} pages visited</div>
       </div>
       <div class="stat-card">
         <div class="label">${result.cost.is_rate_limited ? "AI Usage" : "Cost"}</div>

@@ -14,8 +14,7 @@ function makeResult(discoveries: Discovery[] = []): RunResult {
     finished_at: Date.now(),
     config: {},
     diff_analysis: { summary: "Test diff", files_changed: 2, impact_areas: 1 },
-    layer_a: { tests_generated: 3, tests_passed: 2, tests_failed: 1, discoveries: [] },
-    layer_b: { steps_taken: 10, pages_visited: 3, discoveries: [] },
+    explorer: { steps_taken: 10, pages_visited: 3, discoveries: [] },
     cost: { total_usd: 0.5, input_tokens: 1000, output_tokens: 500, is_rate_limited: false },
     discoveries,
   };
@@ -24,7 +23,7 @@ function makeResult(discoveries: Discovery[] = []): RunResult {
 function makeDiscovery(severity: Discovery["severity"]): Discovery {
   return {
     id: `d-${severity}`,
-    source: "layer-b",
+    source: "explorer",
     severity,
     title: `${severity} issue`,
     description: `A ${severity} severity issue`,

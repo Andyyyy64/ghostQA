@@ -26,8 +26,7 @@ branding:
 | `base` | (auto-detected) | Base git ref for comparison |
 | `head` | `HEAD` | Head git ref |
 | `budget` | (from config) | Override max budget in USD |
-| `layer-a` | `true` | Enable Layer A (test generation) |
-| `layer-b` | `true` | Enable Layer B (AI exploration) |
+| `explore` | `true` | Enable AI exploration |
 | `comment` | `true` | Post PR comment with results |
 
 ## Outputs
@@ -83,12 +82,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### Skip Layer B
+### Skip Exploration
 
 ```yaml
       - uses: ghostqa/action@v0
         with:
-          layer-b: "false"
+          explore: "false"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
@@ -130,7 +129,6 @@ For Before/After runs (`--base` provided):
 
 | Metric | Base | Head |
 |--------|------|------|
-| Layer A Tests | 5/5 | 4/5 |
 | Discoveries | 0 | 1 |
 | Console Errors | 0 | 3 |
 

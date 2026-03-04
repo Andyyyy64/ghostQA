@@ -1,8 +1,8 @@
 /**
- * Tests for Layer B constraint enforcement (Navigator.checkConstraints).
+ * Tests for constraint enforcement (Navigator.checkConstraints).
  */
 import { describe, it, expect } from "vitest";
-import { Navigator } from "../src/layer-b/navigator";
+import { Navigator } from "../src/explorer/navigator";
 
 // We test checkConstraints indirectly via execute() which calls it before running the action.
 // Since execute() needs a real Playwright Page, we test the constraint logic by

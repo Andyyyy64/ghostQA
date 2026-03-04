@@ -19,14 +19,9 @@ export class Comparator {
       headResult.discoveries
     );
 
-    const testRegressions =
-      headResult.layer_a.tests_failed - baseResult.layer_a.tests_failed;
-    const testFixes =
-      baseResult.layer_a.tests_failed - headResult.layer_a.tests_failed;
-
     const behavioral = this.compareBehavioral(baseResult, headResult);
 
-    const verdict = this.determineVerdict(regressions, testRegressions, behavioral);
+    const verdict = this.determineVerdict(regressions, behavioral);
 
     return {
       run_id: headResult.run_id,
@@ -38,21 +33,17 @@ export class Comparator {
       diff_analysis: headResult.diff_analysis,
       base: {
         run_id: baseResult.run_id,
-        layer_a: baseResult.layer_a,
-        layer_b: baseResult.layer_b,
+        explorer: baseResult.explorer,
         discoveries: baseResult.discoveries,
       },
       head: {
         run_id: headResult.run_id,
-        layer_a: headResult.layer_a,
-        layer_b: headResult.layer_b,
+        explorer: headResult.explorer,
         discoveries: headResult.discoveries,
       },
       regressions: {
         new_discoveries: regressions.newDiscoveries,
         fixed_discoveries: regressions.fixedDiscoveries,
-        test_regressions: Math.max(0, testRegressions),
-        test_fixes: Math.max(0, testFixes),
       },
       behavioral,
       visual: { pages_compared: 0, diffs: [] },
@@ -196,15 +187,13 @@ export class Comparator {
 
   private determineVerdict(
     regressions: { newDiscoveries: Discovery[]; fixedDiscoveries: Discovery[] },
-    testRegressions: number,
     behavioral: BehavioralDiff
   ): "pass" | "fail" | "warn" {
-    // FAIL: new critical/high discoveries or test regressions
+    // FAIL: new critical/high discoveries
     if (
       regressions.newDiscoveries.some(
         (d) => d.severity === "critical" || d.severity === "high"
-      ) ||
-      testRegressions > 0
+      )
     ) {
       return "fail";
     }

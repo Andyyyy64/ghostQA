@@ -9,8 +9,7 @@ export const runCommand = new Command("run")
   .option("--diff <ref>", "Git diff reference (default: HEAD~1)")
   .option("--base <ref>", "Base commit for Before/After comparison")
   .option("--head <ref>", "Head commit for Before/After comparison (default: HEAD)")
-  .option("--no-layer-a", "Skip Layer A (generated E2E tests)")
-  .option("--no-layer-b", "Skip Layer B (AI exploration)")
+  .option("--no-explore", "Skip AI exploration")
   .option("--budget <usd>", "Override max budget in USD", parseFloat)
   .action(async (opts) => {
     const cwd = process.cwd();
@@ -22,11 +21,8 @@ export const runCommand = new Command("run")
       if (opts.budget !== undefined) {
         config.ai.max_budget_usd = opts.budget;
       }
-      if (opts.layerA === false) {
-        config.layer_a.enabled = false;
-      }
-      if (opts.layerB === false) {
-        config.layer_b.enabled = false;
+      if (opts.explore === false) {
+        config.explorer.enabled = false;
       }
 
       spinner.succeed("Configuration loaded");
@@ -59,7 +55,7 @@ export const runCommand = new Command("run")
         consola.log(`${icon} Verdict: ${result.verdict.toUpperCase()} (comparison)`);
         consola.log(`   New issues: ${result.regressions.new_discoveries.length}`);
         consola.log(`   Fixed: ${result.regressions.fixed_discoveries.length}`);
-        consola.log(`   Test regressions: ${result.regressions.test_regressions}`);
+        consola.log(`   New issues: ${result.regressions.new_discoveries.length}`);
         if (result.cost.is_rate_limited) {
           consola.log(`   Rate limit: check claude → /usage | codex → /status`);
         } else {

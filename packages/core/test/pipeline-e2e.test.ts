@@ -79,8 +79,7 @@ describe("pipeline e2e", { timeout: 300_000 }, () => {
     expect(summary.started_at).toBeGreaterThan(0);
     expect(summary.finished_at).toBeGreaterThan(summary.started_at);
     expect(summary.diff_analysis).toBeDefined();
-    expect(summary.layer_a).toBeDefined();
-    expect(summary.layer_b).toBeDefined();
+    expect(summary.explorer).toBeDefined();
     expect(summary.cost).toBeDefined();
     expect(Array.isArray(summary.discoveries)).toBe(true);
   });
@@ -127,20 +126,14 @@ describe("pipeline e2e", { timeout: 300_000 }, () => {
       expect(d.id).toBeTruthy();
       expect(d.severity).toMatch(/^(critical|high|medium|low|info)$/);
       expect(d.title).toBeTruthy();
-      expect(d.source).toMatch(/^(layer-a|layer-b)$/);
+      expect(d.source).toMatch(/^(explorer|console)$/);
     }
   });
 
-  it("Layer B explores pages", async () => {
+  it("explorer visits pages", async () => {
     const raw = await readFile(join(runDir, "summary.json"), "utf-8");
     const summary = JSON.parse(raw);
-    expect(summary.layer_b.steps_taken).toBeGreaterThan(0);
-    expect(summary.layer_b.pages_visited).toBeGreaterThan(0);
-  });
-
-  it("generated tests directory exists", async () => {
-    const testsDir = join(runDir, "generated-tests");
-    const files = await readdir(testsDir);
-    expect(files.length).toBeGreaterThan(0);
+    expect(summary.explorer.steps_taken).toBeGreaterThan(0);
+    expect(summary.explorer.pages_visited).toBeGreaterThan(0);
   });
 });

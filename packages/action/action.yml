@@ -18,12 +18,8 @@ inputs:
   budget:
     description: "Max AI budget in USD per run"
     required: false
-  layer-a:
-    description: "Enable Layer A (generated E2E tests)"
-    required: false
-    default: "true"
-  layer-b:
-    description: "Enable Layer B (AI exploration)"
+  explore:
+    description: "Enable AI exploration"
     required: false
     default: "true"
   comment:
