@@ -11,27 +11,19 @@
  * Timeout: 10 minutes (runs pipeline twice)
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFile, readdir, stat, rm } from "node:fs/promises";
+import { readFile, readdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const DEMO_APP = resolve(import.meta.dirname, "../../../examples/demo-app");
 const CLI = resolve(import.meta.dirname, "../../cli/dist/index.js");
 
-async function findLatestRun(baseDir: string): Promise<string> {
-  const runsDir = join(baseDir, ".ghostqa-runs");
-  const entries = await readdir(runsDir);
-  const runDirs = entries.filter((e) => e.startsWith("run-"));
-  if (runDirs.length === 0) throw new Error("No run directories found");
-
-  const withStats = await Promise.all(
-    runDirs.map(async (d) => ({
-      name: d,
-      mtime: (await stat(join(runsDir, d))).mtimeMs,
-    }))
-  );
-  withStats.sort((a, b) => b.mtime - a.mtime);
-  return join(runsDir, withStats[0].name);
+function extractRunId(output: string): string | null {
+  // Compare pipeline logs the comparison run ID (last one logged)
+  const matches = output.match(/Run ID: (run-\w+)/g);
+  if (!matches || matches.length === 0) return null;
+  const last = matches[matches.length - 1];
+  return last.match(/Run ID: (run-\w+)/)?.[1] ?? null;
 }
 
 describe("compare pipeline e2e", { timeout: 600_000 }, () => {
@@ -53,17 +45,19 @@ describe("compare pipeline e2e", { timeout: 600_000 }, () => {
       }
     );
 
-    // Pipeline should complete (exit 0 = pass, exit 1 = fail verdict)
+    const output = (result.stdout ?? "") + (result.stderr ?? "");
+
     if (result.status !== null && result.status > 1) {
-      const output = (result.stdout ?? "") + (result.stderr ?? "");
       throw new Error(
         `Compare pipeline crashed with exit code ${result.status}:\n${output}`
       );
     }
-  });
 
-  beforeAll(async () => {
-    runDir = await findLatestRun(DEMO_APP);
+    const runId = extractRunId(output);
+    if (!runId) {
+      throw new Error(`Failed to extract run ID from pipeline output:\n${output}`);
+    }
+    runDir = join(DEMO_APP, ".ghostqa-runs", runId);
   });
 
   afterAll(async () => {

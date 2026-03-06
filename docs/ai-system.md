@@ -47,7 +47,7 @@ To add a new provider, implement this interface and register it in `AiClient.cre
 Uses `@google/generative-ai` SDK.
 
 - Reads API key from environment variable (default: `GEMINI_API_KEY`)
-- Default model: `gemini-2.0-flash`
+- Default model: `gemini-3.1-flash-lite-preview`
 - Max output tokens: 4096
 - Converts `ChatMessage[]` to Gemini's `Content[]` format (maps `"assistant"` role to `"model"`)
 - For image inputs: prepends `inlineData` part to the last user message
@@ -161,7 +161,7 @@ const response = await ai.chat(system, messages);
 ai.resetTask();                // Revert to default provider
 ```
 
-Available tasks: `"diff_analysis"`, `"test_generation"`, `"ui_control"`, `"triage"`
+Available tasks: `"diff_analysis"`, `"exploration"`, `"ui_control"`, `"triage"`
 
 If no routing is configured for a task, the default provider is used.
 
@@ -195,7 +195,7 @@ Every call automatically:
 
 | Model | Input | Output |
 |-------|-------|--------|
-| `gemini-2.0-flash` | $0.10 | $0.40 |
+| `gemini-3.1-flash-lite-preview` | $0.10 | $0.40 |
 | `gemini-2.5-flash-preview-05-20` | $0.15 | $0.60 |
 | `gemini-2.5-pro-preview-05-06` | $1.25 | $10.00 |
 

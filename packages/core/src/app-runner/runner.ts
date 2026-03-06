@@ -25,7 +25,7 @@ export class AppRunner {
       shell: true,
       stdio: "pipe",
       env: { ...process.env },
-      detached: false,
+      detached: true,
     });
 
     // Don't await — the process should keep running
@@ -40,7 +40,13 @@ export class AppRunner {
   async stop(): Promise<void> {
     if (this.process) {
       consola.info("Stopping app...");
-      this.process.kill("SIGTERM");
+      const pid = this.process.pid;
+      // Kill entire process group (shell + children like vite/node)
+      try {
+        if (pid) process.kill(-pid, "SIGTERM");
+      } catch {
+        this.process.kill("SIGTERM");
+      }
       try {
         await Promise.race([
           this.process,
@@ -49,7 +55,10 @@ export class AppRunner {
           ),
         ]);
       } catch {
-        // Timeout or process killed — force kill
+        // Timeout or process killed — force kill the group
+        try {
+          if (pid) process.kill(-pid, "SIGKILL");
+        } catch {}
         try {
           this.process.kill("SIGKILL");
         } catch {}

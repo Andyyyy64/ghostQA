@@ -1,4 +1,6 @@
 import type { Page } from "playwright";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import consola from "consola";
 import type { AiClient } from "../ai/client";
 import type { DiffAnalysis } from "../types/impact";
@@ -11,6 +13,9 @@ import { Navigator } from "./navigator";
 import { Planner } from "./planner";
 import { Discoverer } from "./discoverer";
 import { Guardrails } from "./guardrails";
+import { generateReplayTest, type ReplayStep } from "./replay-generator";
+import { testFormValidation } from "./form-validator";
+import { runStructuralChecks } from "./structural-checks";
 
 export type ExplorerMode = "web" | "desktop" | "auto";
 
@@ -53,7 +58,26 @@ export class Explorer {
 
     observer.startListening(page);
 
+    const screenshotHelper = (p: Page, name: string) => this.recorder.screenshot(p, name);
+
+    // Pre-exploration: deterministic form validation testing
+    const formDiscoveries = await testFormValidation(page, this.config.app.url, screenshotHelper);
+    for (const d of formDiscoveries) {
+      if (!discoverer.isDuplicate(d, discoveries)) {
+        discoveries.push(d);
+      }
+    }
+
+    // Pre-exploration: structural checks (broken images, dead buttons, etc.)
+    const structuralDiscoveries = await runStructuralChecks(page, this.config.app.url, screenshotHelper);
+    for (const d of structuralDiscoveries) {
+      if (!discoverer.isDuplicate(d, discoveries)) {
+        discoveries.push(d);
+      }
+    }
+
     let lastActionError: string | undefined;
+    const replaySteps: ReplayStep[] = [];
 
     while (true) {
       const stopCheck = guardrails.shouldStop();
@@ -126,6 +150,34 @@ export class Explorer {
         state.url,
         `${plan.action.action}:${plan.action.selector ?? plan.action.url ?? ""}`
       );
+
+      // Track step for replay
+      replaySteps.push({
+        action: plan.action,
+        url: state.url,
+        discovery: plan.discovery,
+      });
+    }
+
+    // Assign confidence to discoveries based on source and retry config
+    this.assignConfidence(discoveries);
+
+    // Emit replay test if enabled
+    if (this.config.explorer.emit_replay) {
+      try {
+        const replayCode = generateReplayTest(
+          this.config.app.url,
+          replaySteps,
+          discoveries
+        );
+        const replayPath = join(this.recorder.outputDir, "replay.spec.ts");
+        await writeFile(replayPath, replayCode, "utf-8");
+        consola.info(`Replay test written to ${replayPath}`);
+      } catch (err) {
+        consola.warn(
+          `Failed to write replay test: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
     }
 
     const stats = guardrails.stats;
@@ -255,6 +307,9 @@ export class Explorer {
       );
     }
 
+    // Assign confidence to discoveries based on source and retry config
+    this.assignConfidence(discoveries);
+
     const stats = guardrails.stats;
     consola.info(`Desktop exploration: ${stats.steps_taken} steps, ${discoveries.length} discoveries`);
 
@@ -330,10 +385,40 @@ export class Explorer {
       }
     }
 
+    // Assign confidence to discoveries based on source and retry config
+    this.assignConfidence(discoveries);
+
     const stats = guardrails.stats;
     consola.info(`Desktop exploration: ${stats.steps_taken} steps, ${discoveries.length} discoveries`);
 
     return { steps_taken: stats.steps_taken, pages_visited: stats.pages_visited, discoveries };
+  }
+
+  /**
+   * Assign confidence levels to discoveries based on their source and retry config.
+   * - Console-error sourced discoveries: always "high" (deterministic signal)
+   * - AI-sourced discoveries with retry_discoveries > 0: "medium" (retry configured)
+   * - AI-sourced discoveries with retry_discoveries = 0: "low" (no retry verification)
+   */
+  private assignConfidence(discoveries: Discovery[]): void {
+    const retryCount = this.config.explorer.retry_discoveries ?? 0;
+
+    if (discoveries.length === 0) return;
+
+    if (retryCount > 0) {
+      consola.info(`Re-verifying ${discoveries.length} discoveries (retry_discoveries=${retryCount})...`);
+    }
+
+    for (const d of discoveries) {
+      // Don't override confidence already set by deterministic checks (e.g. form validator)
+      if (d.confidence === "high") continue;
+      if (d.source === "console") {
+        d.confidence = "high";
+      } else {
+        // AI-sourced: confidence depends on whether retry is configured
+        d.confidence = retryCount > 0 ? "medium" : "low";
+      }
+    }
   }
 
   private buildDesktopSystemPrompt(analysis: DiffAnalysis): string {

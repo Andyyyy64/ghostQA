@@ -112,13 +112,17 @@ function makePage(opts: { untestedElements?: Array<{ role: string; text: string 
     goto: vi.fn().mockResolvedValue(undefined),
     url: vi.fn().mockReturnValue("http://localhost:3000/"),
     title: vi.fn().mockResolvedValue("Test Page"),
-    locator: vi.fn().mockReturnValue({
-      ariaSnapshot: vi.fn().mockResolvedValue("<button>Submit</button>"),
-      first: vi.fn().mockReturnValue({
-        click: vi.fn().mockResolvedValue(undefined),
-        fill: vi.fn().mockResolvedValue(undefined),
-        hover: vi.fn().mockResolvedValue(undefined),
-      }),
+    locator: vi.fn().mockImplementation((sel: string) => {
+      // Form validator queries page.locator("form").all()
+      if (sel === "form") return { all: vi.fn().mockResolvedValue([]) };
+      return {
+        ariaSnapshot: vi.fn().mockResolvedValue("<button>Submit</button>"),
+        first: vi.fn().mockReturnValue({
+          click: vi.fn().mockResolvedValue(undefined),
+          fill: vi.fn().mockResolvedValue(undefined),
+          hover: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
     }),
     on: vi.fn(),
     mouse: { wheel: vi.fn().mockResolvedValue(undefined) },
@@ -286,13 +290,16 @@ describe("Explorer.run (action loop)", () => {
     // We need to make the actual page.locator().first().click() throw
     let callCount = 0;
     const clickFn = vi.fn();
-    page.locator.mockReturnValue({
-      first: vi.fn().mockReturnValue({
-        click: clickFn,
-        fill: vi.fn(),
-        hover: vi.fn(),
-      }),
-      ariaSnapshot: vi.fn().mockResolvedValue("<button>Submit</button>"),
+    page.locator.mockImplementation((sel: string) => {
+      if (sel === "form") return { all: vi.fn().mockResolvedValue([]) };
+      return {
+        first: vi.fn().mockReturnValue({
+          click: clickFn,
+          fill: vi.fn(),
+          hover: vi.fn(),
+        }),
+        ariaSnapshot: vi.fn().mockResolvedValue("<button>Submit</button>"),
+      };
     });
 
     ai.chatWithImage.mockImplementation(async (_sys: any, messages: any[]) => {

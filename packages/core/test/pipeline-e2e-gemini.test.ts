@@ -7,7 +7,7 @@
  * Timeout: 5 minutes
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFile, readdir, stat, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -54,20 +54,9 @@ constraints:
     - "127.0.0.1"
 `;
 
-async function findLatestRun(baseDir: string): Promise<string> {
-  const runsDir = join(baseDir, ".ghostqa-runs");
-  const entries = await readdir(runsDir);
-  const runDirs = entries.filter((e) => e.startsWith("run-"));
-  if (runDirs.length === 0) throw new Error("No run directories found");
-
-  const withStats = await Promise.all(
-    runDirs.map(async (d) => ({
-      name: d,
-      mtime: (await stat(join(runsDir, d))).mtimeMs,
-    }))
-  );
-  withStats.sort((a, b) => b.mtime - a.mtime);
-  return join(runsDir, withStats[0].name);
+function extractRunId(output: string): string | null {
+  const match = output.match(/Run ID: (run-\w+)/);
+  return match ? match[1] : null;
 }
 
 describe.skipIf(!GEMINI_KEY)("pipeline e2e — Gemini API", { timeout: 300_000 }, () => {
@@ -77,9 +66,7 @@ describe.skipIf(!GEMINI_KEY)("pipeline e2e — Gemini API", { timeout: 300_000 }
   beforeAll(async () => {
     originalConfig = await readFile(CONFIG_PATH, "utf-8");
     await writeFile(CONFIG_PATH, GEMINI_CONFIG, "utf-8");
-  });
 
-  beforeAll(() => {
     const env = {
       ...process.env,
       GEMINI_API_KEY: GEMINI_KEY,
@@ -94,14 +81,17 @@ describe.skipIf(!GEMINI_KEY)("pipeline e2e — Gemini API", { timeout: 300_000 }
       maxBuffer: 10 * 1024 * 1024,
     });
 
+    const output = (result.stdout ?? "") + (result.stderr ?? "");
+
     if (result.status !== null && result.status > 1) {
-      const output = (result.stdout ?? "") + (result.stderr ?? "");
       throw new Error(`Pipeline crashed with exit code ${result.status}:\n${output}`);
     }
-  });
 
-  beforeAll(async () => {
-    runDir = await findLatestRun(DEMO_APP);
+    const runId = extractRunId(output);
+    if (!runId) {
+      throw new Error(`Failed to extract run ID from pipeline output:\n${output}`);
+    }
+    runDir = join(DEMO_APP, ".ghostqa-runs", runId);
   });
 
   afterAll(async () => {

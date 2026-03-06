@@ -4,17 +4,20 @@ import type { AiProvider, ChatMessage, ChatResponse } from "./provider";
 export class AnthropicProvider implements AiProvider {
   private client: Anthropic;
   private model: string;
+  private seed?: number;
 
-  constructor(apiKey: string, model: string) {
+  constructor(apiKey: string, model: string, seed?: number) {
     this.client = new Anthropic({ apiKey });
     this.model = model;
+    this.seed = seed;
   }
 
   async chat(
     system: string,
     messages: ChatMessage[],
-    options?: { maxTokens?: number }
+    options?: { maxTokens?: number; seed?: number }
   ): Promise<ChatResponse> {
+    const seed = options?.seed ?? this.seed;
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: options?.maxTokens ?? 4096,
@@ -23,6 +26,7 @@ export class AnthropicProvider implements AiProvider {
         role: m.role,
         content: m.content,
       })),
+      ...(seed !== undefined ? { metadata: { user_id: `seed-${seed}` } } : {}),
     });
 
     const text =
@@ -43,7 +47,7 @@ export class AnthropicProvider implements AiProvider {
     messages: ChatMessage[],
     imageBase64: string,
     mediaType: "image/png" | "image/jpeg" | "image/webp" = "image/png",
-    options?: { maxTokens?: number }
+    options?: { maxTokens?: number; seed?: number }
   ): Promise<ChatResponse> {
     // Build messages with image attached to last user message
     const anthropicMessages: Anthropic.MessageParam[] = messages.map((m, i) => {
@@ -66,11 +70,13 @@ export class AnthropicProvider implements AiProvider {
       return { role: m.role as "user" | "assistant", content: m.content };
     });
 
+    const seed = options?.seed ?? this.seed;
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: options?.maxTokens ?? 4096,
       system,
       messages: anthropicMessages,
+      ...(seed !== undefined ? { metadata: { user_id: `seed-${seed}` } } : {}),
     });
 
     const text =

@@ -5,6 +5,9 @@ import { viewCommand } from "./commands/view";
 import { doctorCommand } from "./commands/doctor";
 import { validateCommand } from "./commands/validate";
 import { recordCommand } from "./commands/record";
+import { estimateCommand } from "./commands/estimate";
+import { baselineCommand } from "./commands/baseline";
+import { replayCommand } from "./commands/replay";
 
 const program = new Command();
 
@@ -21,5 +24,8 @@ program.addCommand(viewCommand);
 program.addCommand(doctorCommand);
 program.addCommand(validateCommand);
 program.addCommand(recordCommand);
+program.addCommand(estimateCommand);
+program.addCommand(baselineCommand);
+program.addCommand(replayCommand);
 
 program.parse();

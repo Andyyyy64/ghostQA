@@ -84,7 +84,7 @@ export class AiClient {
   }
 }
 
-function createProvider(config: { provider: string; model: string; api_key_env: string; cli: { command: string; args: string[] } }): AiProvider {
+function createProvider(config: { provider: string; model: string; api_key_env: string; seed?: number; cli: { command: string; args: string[] } }): AiProvider {
   switch (config.provider) {
     case "gemini": {
       const apiKey = process.env[config.api_key_env];
@@ -93,7 +93,7 @@ function createProvider(config: { provider: string; model: string; api_key_env: 
           `API key not found. Set ${config.api_key_env} environment variable.`
         );
       }
-      return new GeminiProvider(apiKey, config.model);
+      return new GeminiProvider(apiKey, config.model, config.seed);
     }
     case "anthropic": {
       const apiKey = process.env[config.api_key_env];
@@ -102,7 +102,7 @@ function createProvider(config: { provider: string; model: string; api_key_env: 
           `API key not found. Set ${config.api_key_env} environment variable.`
         );
       }
-      return new AnthropicProvider(apiKey, config.model);
+      return new AnthropicProvider(apiKey, config.model, config.seed);
     }
     case "openai": {
       const apiKey = process.env[config.api_key_env];
@@ -111,7 +111,7 @@ function createProvider(config: { provider: string; model: string; api_key_env: 
           `API key not found. Set ${config.api_key_env} environment variable.`
         );
       }
-      return new OpenAIProvider(apiKey, config.model);
+      return new OpenAIProvider(apiKey, config.model, config.seed);
     }
     case "cli": {
       return new CliProvider(config.cli.command, config.cli.args);

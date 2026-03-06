@@ -18,3 +18,6 @@ export { DesktopNavigator } from "./desktop-navigator";
 export { DesktopPlanner } from "./desktop-planner";
 export { Discoverer } from "./discoverer";
 export { calculateScale, scaleToDisplay, scaleToApi } from "./screenshot-scaler";
+export { generateReplayTest, type ReplayStep } from "./replay-generator";
+export { testFormValidation } from "./form-validator";
+export { runStructuralChecks } from "./structural-checks";

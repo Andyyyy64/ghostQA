@@ -1,0 +1,20 @@
+app:
+  name: ghostqa-bench-app
+  build: "npm run build"
+  start: "npm run preview"
+  url: "http://localhost:3000"
+
+ai:
+  provider: cli
+  cli:
+    command: claude
+
+explorer:
+  max_steps: 50
+  max_duration: 600000
+
+constraints:
+  no_payment: true
+  allowed_domains:
+    - localhost
+    - "127.0.0.1"

@@ -5,16 +5,16 @@ import { loadConfig, configExists } from "@ghostqa/core";
 export const validateCommand = new Command("validate")
   .description("Validate .ghostqa.yml configuration")
   .option("-c, --config <path>", "Config file path")
-  .action(async () => {
+  .action(async (opts) => {
     const cwd = process.cwd();
 
-    if (!(await configExists(cwd))) {
+    if (!opts.config && !(await configExists(cwd))) {
       consola.error("No .ghostqa.yml found. Run 'ghostqa init' first.");
       process.exit(1);
     }
 
     try {
-      const config = await loadConfig(cwd);
+      const config = await loadConfig(cwd, opts.config);
       consola.success("Configuration is valid");
       consola.info(`  App: ${config.app.name}`);
       consola.info(`  AI: ${config.ai.provider} (${config.ai.model})`);

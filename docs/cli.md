@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ghostQA CLI is built with commander.js and provides 6 commands. The CLI package (`packages/cli`) is a thin wrapper that imports all business logic from `@ghostqa/core`.
+The ghostQA CLI is built with commander.js and provides 9 commands. The CLI package (`packages/cli`) is a thin wrapper that imports all business logic from `@ghostqa/core`.
 
 **Entry point:** `packages/cli/src/index.ts`
 **Binary name:** `ghostqa`
@@ -39,6 +39,7 @@ Options:
   --diff <ref>           Git diff reference (default: "HEAD~1")
   --base <ref>           Base git ref for Before/After comparison
   --head <ref>           Head git ref (default: "HEAD")
+  --baseline             Compare against the saved baseline
   --no-explore           Skip AI exploration
   --budget <usd>         Override max AI budget in USD
 ```
@@ -123,7 +124,7 @@ Options:
 ```
 ✔ Configuration is valid
   App: my-app
-  AI: gemini (gemini-2.0-flash)
+  AI: cli (gemini-3.1-flash-lite-preview)
   Explorer: enabled
   Constraints: no_payment, no_delete
 ```
@@ -151,3 +152,54 @@ Options:
 6. Logs completion
 
 This command is useful for creating reference recordings or debugging UI issues.
+
+### `ghostqa estimate`
+
+Estimate AI cost before running the pipeline.
+
+```bash
+ghostqa estimate [options]
+
+Options:
+  -c, --config <path>    Config file path
+  --diff <ref>           Git diff reference (default: "HEAD~1")
+```
+
+**Behavior:**
+
+1. Loads config to determine provider and budget settings
+2. Reads `git diff --stat` to estimate changed line count
+3. Computes token and cost estimates with `estimateCost()`
+4. Prints either a USD range or CLI rate-limit guidance
+
+### `ghostqa baseline`
+
+Manage approved baseline runs stored under `.ghostqa-baseline/`.
+
+```bash
+ghostqa baseline save <run-id>
+ghostqa baseline show
+ghostqa baseline list
+ghostqa baseline clear
+```
+
+**Behavior:**
+
+- `save <run-id>` copies an existing run directory into `.ghostqa-baseline/`
+- `show` prints the currently approved baseline
+- `list` lists saved baselines (currently the active baseline entry)
+- `clear` removes saved baseline metadata and files
+
+### `ghostqa replay`
+
+Run a previously generated Playwright replay spec.
+
+```bash
+ghostqa replay <path>
+```
+
+**Behavior:**
+
+1. Resolves the replay spec path from the current working directory
+2. Runs `npx playwright test <path>`
+3. Exits with the same status code as Playwright

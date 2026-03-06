@@ -11,7 +11,7 @@
 | [Comparator](./comparator.md) | Before/After comparison — discovery diff, visual diff, behavioral diff |
 | [Reporter](./reporter.md) | HTML/JSON report generation for single runs and comparisons |
 | [Configuration](./configuration.md) | Full `.ghostqa.yml` schema reference with all fields, defaults, and examples |
-| [CLI](./cli.md) | All 6 commands with options, exit codes, and behavior |
+| [CLI](./cli.md) | All 9 commands with options, exit codes, and behavior |
 | [GitHub Action](./github-action.md) | Action inputs/outputs, PR comment format, workflow examples |
 | [Type Definitions](./types.md) | All shared TypeScript types and Zod schemas |
 | [Infrastructure](./infrastructure.md) | Docker image, environment manager, app runner, recorder |

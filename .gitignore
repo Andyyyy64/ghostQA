@@ -2,6 +2,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 .ghostqa-runs/
+.ghostqa-baseline/
+.ghostqa-recordings/
 .ghostqa.yml
 !examples/**/.ghostqa.yml
 *.log

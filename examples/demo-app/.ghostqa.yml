@@ -1,6 +1,3 @@
-# ghostQA — auto-detected from package.json
-# Docs: https://github.com/ghostqa/ghostqa/blob/main/docs/configuration.md
-
 app:
   name: ghostqa-demo-app
   build: "pnpm run build"
@@ -8,13 +5,14 @@ app:
   url: "http://localhost:3000"
 
 ai:
-  provider: cli               # cli (Claude Code) | gemini | anthropic | openai
+  provider: cli
   cli:
-    command: claude            # claude | codex | gemini
+    command: claude
+  max_budget_usd: 2
 
 explorer:
-  max_steps: 50
-  max_duration: 300000        # 5 minutes
+  max_steps: 20
+  max_duration: 180000
 
 constraints:
   no_payment: true

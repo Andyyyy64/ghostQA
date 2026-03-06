@@ -57,8 +57,9 @@ AI provider and budget settings.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `provider` | `"gemini"` \| `"anthropic"` \| `"openai"` \| `"cli"` | `"cli"` | AI backend (`cli` uses Claude Code by default) |
-| `model` | string | `"gemini-2.0-flash"` | Model name |
+| `model` | string | `"gemini-3.1-flash-lite-preview"` | Model name |
 | `api_key_env` | string | `"GEMINI_API_KEY"` | Environment variable for API key |
+| `seed` | number | — | Optional random seed for reproducible supported providers |
 | `max_budget_usd` | number | `1.0` | Maximum cost per run in USD |
 | `cli.command` | string | `"claude"` | CLI tool command (`claude`, `codex`, `gemini`, or custom) |
 | `cli.args` | string[] | `[]` | Extra arguments for CLI tool |
@@ -71,6 +72,7 @@ Override the AI provider for specific pipeline tasks. Each key accepts the same 
 | Task Key | Pipeline Stage |
 |----------|---------------|
 | `diff_analysis` | Git diff → impact area estimation |
+| `exploration` | High-level exploration reasoning |
 | `ui_control` | Explorer: deciding browser actions (vision required) |
 | `triage` | Result summarization and report generation |
 
@@ -79,16 +81,19 @@ Example:
 ```yaml
 ai:
   provider: gemini
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 3.0
   routing:
     diff_analysis:
       provider: cli
       cli:
         command: claude
+    exploration:
+      provider: gemini
+      model: gemini-3.1-flash-lite-preview
     ui_control:
       provider: gemini
-      model: gemini-2.0-flash
+      model: gemini-3.1-flash-lite-preview
 ```
 
 ### `explorer` (optional)
@@ -98,10 +103,17 @@ AI exploration settings.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Enable AI exploration |
+| `mode` | `"web"` \| `"desktop"` \| `"auto"` | `"web"` | Exploration backend |
 | `max_steps` | number | `50` | Maximum browser actions |
 | `max_duration` | number | `300000` | Maximum exploration time in ms (5 minutes) |
+| `emit_replay` | boolean | `false` | Emit `replay.spec.ts` from explorer steps |
+| `retry_discoveries` | number | `0` | Retry rounds for flaky discovery detection |
 | `viewport.width` | number | `1280` | Browser viewport width |
 | `viewport.height` | number | `720` | Browser viewport height |
+| `desktop.display` | string | `":99"` | X display for desktop mode |
+| `desktop.app_command` | string | `""` | Desktop app launch command |
+| `desktop.window_name` | string | — | Optional window title hint |
+| `desktop.window_timeout` | number | `30000` | Wait time for window detection |
 
 ### `constraints` (optional)
 
@@ -148,7 +160,7 @@ app:
 
 ai:
   provider: gemini
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 2.0
 ```
 
@@ -226,21 +238,31 @@ app:
 
 ai:
   provider: gemini
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 3.0
   routing:
     diff_analysis:
       provider: cli
       cli:
         command: claude
+    exploration:
+      provider: gemini
+      model: gemini-3.1-flash-lite-preview
 
 explorer:
   enabled: true
+  mode: web
   max_steps: 80
   max_duration: 600000
+  emit_replay: false
+  retry_discoveries: 0
   viewport:
     width: 1440
     height: 900
+  desktop:
+    display: ":99"
+    app_command: ""
+    window_timeout: 30000
 
 constraints:
   no_payment: true

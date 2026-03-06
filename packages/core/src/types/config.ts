@@ -36,6 +36,7 @@ export const AiProviderConfigSchema = z.object({
     .describe("AI provider: 'cli' for Claude Code (default), or 'gemini', 'anthropic', 'openai' for APIs"),
   model: z.string().default("gemini-3.1-flash-lite-preview"),
   api_key_env: z.string().default("GEMINI_API_KEY"),
+  seed: z.number().optional().describe("Random seed for reproducible AI responses (supported by Gemini and OpenAI)"),
   cli: z
     .object({
       command: z
@@ -74,6 +75,11 @@ export const ExplorerConfigSchema = z.object({
   mode: z.enum(["web", "desktop", "auto"]).default("web"),
   max_steps: z.number().default(50),
   max_duration: z.number().default(300000).describe("Max duration in ms"),
+  emit_replay: z
+    .boolean()
+    .default(false)
+    .describe("Generate a Playwright replay test from exploration steps"),
+  retry_discoveries: z.number().default(0).describe("Number of retry rounds for flaky discovery detection (0 = no retry)"),
   viewport: z
     .object({
       width: z.number().default(1280),

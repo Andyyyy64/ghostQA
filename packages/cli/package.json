@@ -1,9 +1,37 @@
 {
   "name": "ghostqa",
   "version": "0.1.0",
+  "description": "AI-powered regression testing. Zero test code required.",
+  "license": "MIT",
+  "author": "Andyyyy64",
+  "homepage": "https://github.com/Andyyyy64/ghostQA",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Andyyyy64/ghostQA.git",
+    "directory": "packages/cli"
+  },
+  "bugs": "https://github.com/Andyyyy64/ghostQA/issues",
+  "keywords": [
+    "qa",
+    "testing",
+    "ai",
+    "regression",
+    "browser",
+    "automation",
+    "playwright",
+    "ghostqa",
+    "e2e",
+    "vibe-coding"
+  ],
   "type": "module",
   "bin": {
     "ghostqa": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",

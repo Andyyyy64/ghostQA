@@ -22,7 +22,7 @@
 - **HAR トレース** — ブラウザコンテキストの全 HTTP トラフィックを `trace.har` に記録
 - **HTML レポート** — ダークテーマ、verdict カード、stats グリッド、discovery 詳細
 - **JSON サマリー** — `summary.json` で機械可読な結果出力
-- **CLI 4コマンド** — `init` / `run` / `view` / `doctor`（Playwright ブラウザ実存チェック対応）
+- **CLI 9コマンド** — `init` / `run` / `view` / `doctor` / `validate` / `record` / `estimate` / `baseline` / `replay`
 - **AI プロバイダー** — Gemini API + CLI ツール（`claude -p`, `codex -q`）対応
 - **コスト管理** — BudgetExceededError で予算超過時に部分レポート生成。CLI プロバイダーは文字数ベースのトークン推定でコスト概算表示
   - CLI プロバイダー（claude/codex）はレートリミット制。コスト表示ではなく `claude → /usage | codex → /status` への案内を表示
@@ -70,10 +70,9 @@
 
 | 優先度 | 項目 | 概要 |
 |--------|------|------|
-| 1 | **決定論リプレイモード** | Explorer の発見を Playwright テストに固定化。発見→テスト資産化 |
-| 2 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
-| 3 | **Baseline 管理** | 承認済み Artifact Pack を保存し、CI での継続比較基準にする |
-| 4 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
+| 1 | **最小再現生成** | discovery の再現ステップを削減して最短手順を生成 |
+| 2 | **導入ガイド** | フレームワーク別（Next.js / Vite / Nuxt 等）クイックスタート |
+| 3 | **自プロジェクトのテスト強化** | Explorer 周りのカバレッジ改善。リファクタ耐性 |
 | 並行 | **自プロジェクトのテスト強化** | Explorer 周りのカバレッジ改善。リファクタ耐性 |
 
 **スコープ外（やらない）:**
@@ -102,7 +101,7 @@
 ```
 ghostqa/
 ├── packages/
-│   ├── cli/          # ghostqa コマンド（init/run/view/doctor/validate/record）
+│   ├── cli/          # ghostqa コマンド（init/run/view/doctor/validate/record/estimate/baseline/replay）
 │   ├── core/         # ビジネスロジック全体
 │   │   └── src/
 │   │       ├── ai/           # Provider パターン（Gemini / Anthropic / OpenAI / CLI）+ タスクルーティング + Anthropic Computer Use
@@ -241,79 +240,69 @@ ghostqa の核心は **AI Explorer**。AIがブラウザ上でリアルタイム
 
 ```yaml
 # .ghostqa.yml — リポジトリルートに配置
-version: 1
-
-# ─── アプリケーション設定 ───
 app:
-  build: "pnpm i --frozen-lockfile && pnpm build"
-  start: "pnpm start --port 3000"
-  healthcheck_url: "http://127.0.0.1:3000/health"
-  healthcheck_timeout_s: 60
-  target_url: "http://127.0.0.1:3000/"
+  name: "my-app"
+  root: "."
+  build: "pnpm build"
+  start: "pnpm start"
+  url: "http://127.0.0.1:3000"
+  healthcheck:
+    path: "/"
+    timeout: 30000
+    interval: 1000
 
-# ─── 実行環境 ───
-engine:
-  mode: "docker"                    # docker | native
-  docker_image: "ghostqa/runner:latest"
-  viewport: { width: 1440, height: 900 }
-  locale: "ja-JP"
-  timezone: "UTC"
-  video: true
-  screenshots: "step"               # step | transition | off
-  network_har: true
+environment:
+  mode: "native"                    # native | docker
+  docker:
+    image: "ghostqa/runner:latest"
+    volumes: []
 
-# ─── AI設定 ───
 ai:
-  model: "claude-sonnet-4-20250514"
-  provider: "anthropic"
-  api_key_env: "ANTHROPIC_API_KEY"
-  temperature: 0.2
-  max_steps: 80                      # 探索の最大操作回数
-  max_minutes: 10                    # 探索の最大実行時間
-  budget:
-    max_cost_usd_per_run: 5.0        # 1回の実行あたりのコスト上限
+  provider: "cli"                    # cli | gemini | anthropic | openai
+  model: "gemini-3.1-flash-lite-preview"
+  api_key_env: "GEMINI_API_KEY"
+  max_budget_usd: 5.0
+  cli:
+    command: "claude"                # claude | codex | gemini
+    args: []
+  routing:
+    diff_analysis:
+      provider: "cli"
+      cli:
+        command: "claude"
+    ui_control:
+      provider: "gemini"
+      model: "gemini-3.1-flash-lite-preview"
 
-# ─── 制約 ───
+explorer:
+  enabled: true
+  mode: "web"                        # web | desktop | auto
+  max_steps: 80
+  max_duration: 600000
+  emit_replay: false
+  retry_discoveries: 0
+  viewport:
+    width: 1440
+    height: 900
+  desktop:
+    display: ":99"
+    app_command: ""
+    window_timeout: 30000
+
 constraints:
-  no_payment: true                   # 課金操作禁止
-  no_delete: true                    # 削除操作禁止
-  no_external_links: true            # 外部ドメイン遷移禁止
+  no_payment: true
+  no_delete: true
+  no_external_links: true
   allowed_domains:
     - "127.0.0.1"
     - "localhost"
+  forbidden_selectors: []
 
-# ─── Visual Diff 設定 ───
-visual:
-  pixel_threshold: 0.1               # 色差の下限
-  area_threshold: 0.5                # 変化面積%の閾値
-  mask_selectors:                    # 動的領域のマスク
-    - "[data-testid='timestamp']"
-    - ".ad-banner"
-    - "[data-random-id]"
-  stabilization:
-    force_reduced_motion: true
-    wait_for_network_idle: true
-    wait_for_fonts: true
-
-# ─── 判定ポリシー ───
-policy:
-  fail_on:
-    - "page_crash"
-    - "uncaught_exception"
-    - "console_error_count > 3"
-    - "http_5xx_count > 0"
-    - "visual_area_over_threshold"
-  warn_on:
-    - "console_warn_spike"
-    - "http_4xx_increase"
-    - "minor_visual_diff"
-
-# ─── レポート ───
-report:
-  format: "html"                     # html | json | markdown
-  language: "ja"                     # ja | en
-  include_video: true
-  include_trace: true
+reporter:
+  output_dir: ".ghostqa-runs"
+  formats: ["html", "json"]
+  video: true
+  screenshots: true
 ```
 
 ### 3.2 ユーザーが用意するもの
@@ -427,7 +416,7 @@ report:
 | console.error | 0 | 3 | +3 ⚠️ |
 | HTTP 5xx | 0 | 1 | +1 ⚠️ |
 
-> 生成テスト・動画・詳細レポートは [Artifacts](link) からダウンロード可能
+> 生成テスト・動画・詳細レポートは workflow 側で `actions/upload-artifact` を追加すると保存可能
 ```
 
 ---
@@ -491,7 +480,7 @@ ghostqa/
 
 **探索のガードレール：**
 - `max_steps` 超過で強制終了
-- `max_minutes` 超過で強制終了
+- `max_duration` 超過で強制終了
 - `constraints` で禁止された操作（削除/課金/送信等）は実行前にブロック
 - `allowed_domains` 外への遷移はブロック
 - 同じ画面で同じ操作を3回以上繰り返したらスキップ（ループ防止）
@@ -541,16 +530,27 @@ ghostqa/
 ghostqa init
 
 # メイン実行：base/headで検証してレポート生成
-ghostqa run [--base <ref>] [--head <ref>] [--engine docker|native]
+ghostqa run [--base <ref>] [--head <ref>] [--baseline] [--diff <ref>]
 
 # レポート閲覧：生成済みレポートをブラウザで開く
-ghostqa view [<run_id>]
+ghostqa view [--run <run_id>]
 
 # 環境チェック：依存関係の確認と対処法表示
 ghostqa doctor
 
 # 設定検証：.ghostqa.yml のバリデーション
 ghostqa validate
+
+# 実行前のコスト見積もり
+ghostqa estimate [--diff <ref>]
+
+# 承認済み baseline の保存・確認・削除
+ghostqa baseline save <run-id>
+ghostqa baseline show
+ghostqa baseline clear
+
+# 生成済み replay.spec.ts の再実行
+ghostqa replay <path>
 ```
 
 ### 6.2 `ghostqa run` の詳細
@@ -559,31 +559,27 @@ ghostqa validate
 ghostqa run
 
 # オプション
---base <ref>          # 比較元（デフォルト：origin/main との merge-base）
---head <ref>          # 比較先（デフォルト：HEAD）
---engine docker|native  # 実行環境（デフォルト：docker）
+-c, --config <path>   # 設定ファイル（デフォルト: .ghostqa.yml）
+--diff <ref>          # 差分解析に使う git ref（デフォルト: HEAD~1）
+--base <ref>          # Before/After 比較の base ref
+--head <ref>          # Before/After 比較の head ref（デフォルト: HEAD）
+--baseline            # 保存済み baseline を base として比較
 --no-explore          # AI探索をスキップ
---no-video            # 動画を記録しない（高速化）
---verbose             # 詳細ログ出力
---output <dir>        # 成果物出力先（デフォルト：.ghostqa-runs/）
+--budget <usd>        # 実行時の max_budget_usd を上書き
 ```
 
 **実行フロー：**
 1. `.ghostqa.yml` を読み込み・バリデーション
-2. base/head のコミットを確定
-3. 隔離環境を起動（Docker or native）
-4. base側：ビルド→起動→ヘルスチェック→AI探索→記録
-5. head側：同上
-6. 比較（visual + behavioral）
-7. レポート生成
-8. verdict を exit code で返す（0=PASS、1=FAIL、2=WARN）
+2. `--base` / `--baseline` の有無で single run か comparison を決定
+3. diff 解析 → 環境セットアップ → app build/start
+4. AI探索（必要に応じて structural checks / replay 出力を含む）
+5. レポート生成
+6. verdict を exit code で返す（0=PASS/WARN、1=FAIL）
 
 ### 6.3 `ghostqa init` が生成するもの
 
 ```
-.ghostqa.yml          # 設定ファイル（コメント付き雛形）
-.ghostqa/
-└── Dockerfile        # カスタムランナーが必要な場合用
+.ghostqa.yml          # 設定ファイル（auto-detected template）
 ```
 
 ---
@@ -621,7 +617,8 @@ jobs:
 
 - **Check Run**：PASS / FAIL / WARN（PRのステータスチェック）
 - **PRコメント**：セクション4.3のフォーマットで投稿
-- **Artifacts**：証拠パック一式をGitHub Actions Artifactsにアップロード（90日保持）
+- **Outputs**：`verdict` / `discoveries` / `report-path` / `cost`
+- **Artifacts**：必要なら workflow 側で `actions/upload-artifact` を明示的に追加
 
 ---
 
@@ -658,10 +655,10 @@ jobs:
 ```yaml
 ai:
   provider: gemini                    # gemini | cli
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 5.0
   cli:
-    command: claude                   # claude | codex
+    command: claude                   # claude | codex | gemini
 ```
 
 ### 9.2 プロバイダー全体像（実装済み）
@@ -676,16 +673,19 @@ ai:
 ```yaml
 ai:
   provider: gemini
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 3.0
   routing:
     diff_analysis:
       provider: cli
       cli:
         command: claude
+    exploration:
+      provider: gemini
+      model: gemini-3.1-flash-lite-preview
     ui_control:
       provider: gemini
-      model: gemini-2.0-flash
+      model: gemini-3.1-flash-lite-preview
 ```
 
 ### 9.4 v1.0 でのルーティング例（全プロバイダー対応後）
@@ -701,7 +701,7 @@ ai:
       model: claude-sonnet-4-20250514
     ui_control:
       provider: gemini                 # vision が安い
-      model: gemini-2.0-flash
+      model: gemini-3.1-flash-lite-preview
     triage:
       provider: openai
       model: gpt-4o-mini              # 安いモデルで十分
@@ -784,7 +784,7 @@ ghostqa run
 | Before/After比較 | base側でもアプリ起動・テスト実行・探索を行い、head側と比較 |
 | Visual Diff | スクショのpixel diff + SSIM + ヒートマップ生成 |
 | Behavioral Diff | console/network のbase/head件数比較 |
-| GitHub Action | PRで自動実行 → Check Run + PRコメント + Artifacts |
+| GitHub Action | PRで自動実行 → Check Run + PRコメント |
 | タスク別モデル | diff解析/UI操作/要約を別モデルに振り分け可能 |
 | 制約 (constraints) | no_payment / no_delete / no_external_links / allowed_domains / forbidden_selectors |
 | `validate` コマンド | .ghostqa.yml のバリデーション + 設定サマリー表示 |
@@ -830,10 +830,9 @@ ghostqa run --base origin/main --head HEAD
 
 | 優先度 | 項目 | 内容 |
 |--------|------|------|
-| 1 | **決定論リプレイモード** | Explorer の探索結果を Playwright テストに固定化 → 以後は決定論実行。発見→テスト資産化 |
-| 2 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
-| 3 | **Baseline 管理** | 承認済み Artifact Pack を保存し、次回比較の基準にする |
-| 4 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
+| 1 | **最小再現生成** | FAIL 時にステップを削減して最短の再現手順を生成 |
+| 2 | **導入ガイド** | フレームワーク別クイックスタート（Next.js / Vite / Nuxt 等）、トラブルシューティング |
+| 3 | **自プロジェクトのテスト強化** | Explorer 周りのカバレッジ改善。リファクタ耐性 |
 
 #### スコープ外（やらない）
 

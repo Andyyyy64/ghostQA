@@ -65,17 +65,17 @@ jobs:
         with:
           fetch-depth: 0    # Full history needed for git diff
 
-      - uses: ghostqa/action@v0
+      - uses: Andyyyy64/ghostQA@v0
         with:
           budget: "2.0"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
 
-### With Claude CLI
+### With Anthropic API
 
 ```yaml
-      - uses: ghostqa/action@v0
+      - uses: Andyyyy64/ghostQA@v0
         with:
           budget: "5.0"
         env:
@@ -85,7 +85,7 @@ jobs:
 ### Skip Exploration
 
 ```yaml
-      - uses: ghostqa/action@v0
+      - uses: Andyyyy64/ghostQA@v0
         with:
           explore: "false"
         env:
@@ -95,7 +95,7 @@ jobs:
 ### Use Verdict in Subsequent Steps
 
 ```yaml
-      - uses: ghostqa/action@v0
+      - uses: Andyyyy64/ghostQA@v0
         id: ghostqa
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -115,6 +115,18 @@ When `comment: true` (default) and the trigger is a `pull_request` event, the ac
 - If found: updates the existing comment (avoids comment spam)
 - If not found: creates a new comment
 - Uses `GITHUB_TOKEN` for authentication (automatically available in Actions)
+
+## Artifact Upload
+
+The action itself does **not** upload `.ghostqa-runs/` as a workflow artifact. Add an explicit upload step if you want to preserve reports, videos, and traces:
+
+```yaml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ghostqa-runs
+          path: .ghostqa-runs
+```
 
 ### Comparison Comment Format
 

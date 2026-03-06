@@ -21,20 +21,9 @@ import { spawnSync } from "node:child_process";
 const DEMO_APP = resolve(import.meta.dirname, "../../../examples/demo-app");
 const CLI = resolve(import.meta.dirname, "../../cli/dist/index.js");
 
-async function findLatestRun(baseDir: string): Promise<string> {
-  const runsDir = join(baseDir, ".ghostqa-runs");
-  const entries = await readdir(runsDir);
-  const runDirs = entries.filter((e) => e.startsWith("run-"));
-  if (runDirs.length === 0) throw new Error("No run directories found");
-
-  const withStats = await Promise.all(
-    runDirs.map(async (d) => ({
-      name: d,
-      mtime: (await stat(join(runsDir, d))).mtimeMs,
-    }))
-  );
-  withStats.sort((a, b) => b.mtime - a.mtime);
-  return join(runsDir, withStats[0].name);
+function extractRunId(output: string): string | null {
+  const match = output.match(/Run ID: (run-\w+)/);
+  return match ? match[1] : null;
 }
 
 describe("pipeline e2e", { timeout: 300_000 }, () => {
@@ -52,15 +41,19 @@ describe("pipeline e2e", { timeout: 300_000 }, () => {
       maxBuffer: 10 * 1024 * 1024,
     });
 
+    const output = (result.stdout ?? "") + (result.stderr ?? "");
+
     // Pipeline should complete (exit 0 = pass, exit 1 = fail verdict)
     if (result.status !== null && result.status > 1) {
-      const output = (result.stdout ?? "") + (result.stderr ?? "");
       throw new Error(`Pipeline crashed with exit code ${result.status}:\n${output}`);
     }
-  });
 
-  beforeAll(async () => {
-    runDir = await findLatestRun(DEMO_APP);
+    // Extract exact run ID from output to avoid cross-test contamination
+    const runId = extractRunId(output);
+    if (!runId) {
+      throw new Error(`Failed to extract run ID from pipeline output:\n${output}`);
+    }
+    runDir = join(DEMO_APP, ".ghostqa-runs", runId);
   });
 
   afterAll(async () => {
@@ -126,7 +119,7 @@ describe("pipeline e2e", { timeout: 300_000 }, () => {
       expect(d.id).toBeTruthy();
       expect(d.severity).toMatch(/^(critical|high|medium|low|info)$/);
       expect(d.title).toBeTruthy();
-      expect(d.source).toMatch(/^(explorer|console)$/);
+      expect(d.source).toMatch(/^(explorer|console|structural)$/);
     }
   });
 

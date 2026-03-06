@@ -11,7 +11,7 @@
  * Timeout: 5 minutes
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFile, readdir, stat, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { spawnSync, spawn, type ChildProcess } from "node:child_process";
 
@@ -74,20 +74,9 @@ constraints:
     - "127.0.0.1"
 `;
 
-async function findLatestRun(baseDir: string): Promise<string> {
-  const runsDir = join(baseDir, ".ghostqa-runs");
-  const entries = await readdir(runsDir);
-  const runDirs = entries.filter((e) => e.startsWith("run-"));
-  if (runDirs.length === 0) throw new Error("No run directories found");
-
-  const withStats = await Promise.all(
-    runDirs.map(async (d) => ({
-      name: d,
-      mtime: (await stat(join(runsDir, d))).mtimeMs,
-    }))
-  );
-  withStats.sort((a, b) => b.mtime - a.mtime);
-  return join(runsDir, withStats[0].name);
+function extractRunId(output: string): string | null {
+  const match = output.match(/Run ID: (run-\w+)/);
+  return match ? match[1] : null;
 }
 
 describe.skipIf(!hasDeps)("pipeline e2e — desktop (computer-use)", { timeout: 360_000 }, () => {
@@ -96,9 +85,8 @@ describe.skipIf(!hasDeps)("pipeline e2e — desktop (computer-use)", { timeout: 
   let xvfbProcess: ChildProcess;
   let openboxProcess: ChildProcess;
 
-  // Start Xvfb + openbox
   beforeAll(async () => {
-    // Kill any existing Xvfb on :42
+    // Start Xvfb + openbox
     spawnSync("pkill", ["-f", `Xvfb ${DISPLAY}`], { encoding: "utf-8" });
     await new Promise(r => setTimeout(r, 500));
 
@@ -107,8 +95,6 @@ describe.skipIf(!hasDeps)("pipeline e2e — desktop (computer-use)", { timeout: 
       detached: true,
     });
     xvfbProcess.unref();
-
-    // Wait for Xvfb to start
     await new Promise(r => setTimeout(r, 1000));
 
     openboxProcess = spawn("openbox", [], {
@@ -117,18 +103,13 @@ describe.skipIf(!hasDeps)("pipeline e2e — desktop (computer-use)", { timeout: 
       env: { ...process.env, DISPLAY },
     });
     openboxProcess.unref();
-
     await new Promise(r => setTimeout(r, 500));
-  });
 
-  // Save original config, write desktop config
-  beforeAll(async () => {
+    // Save original config, write desktop config
     originalConfig = await readFile(CONFIG_PATH, "utf-8");
     await writeFile(CONFIG_PATH, DESKTOP_CONFIG, "utf-8");
-  });
 
-  // Run the pipeline
-  beforeAll(() => {
+    // Run the pipeline
     const env = { ...process.env, DISPLAY };
     delete env.CLAUDECODE;
 
@@ -140,14 +121,17 @@ describe.skipIf(!hasDeps)("pipeline e2e — desktop (computer-use)", { timeout: 
       maxBuffer: 10 * 1024 * 1024,
     });
 
+    const output = (result.stdout ?? "") + (result.stderr ?? "");
+
     if (result.status !== null && result.status > 1) {
-      const output = (result.stdout ?? "") + (result.stderr ?? "");
       throw new Error(`Desktop pipeline crashed with exit code ${result.status}:\n${output}`);
     }
-  });
 
-  beforeAll(async () => {
-    runDir = await findLatestRun(DEMO_APP);
+    const runId = extractRunId(output);
+    if (!runId) {
+      throw new Error(`Failed to extract run ID from pipeline output:\n${output}`);
+    }
+    runDir = join(DEMO_APP, ".ghostqa-runs", runId);
   });
 
   afterAll(async () => {

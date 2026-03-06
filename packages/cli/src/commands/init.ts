@@ -15,8 +15,17 @@ export const initCommand = new Command("init")
       return;
     }
 
-    const path = await generateConfig(cwd);
-    consola.success(`Created ${path} (auto-detected from package.json)`);
+    const { path, project } = await generateConfig(cwd);
+
+    const detections = [
+      `Package manager: ${project.packageManager}`,
+      project.framework ? `Framework: ${project.framework}` : null,
+      `Start: ${project.start}`,
+      `Port: ${project.port}`,
+    ].filter(Boolean);
+
+    consola.success(`Created ${path}`);
+    consola.info(`Detected: ${detections.join(" | ")}`);
     consola.info("Review the config, then run:");
     consola.info("  ghostqa run     # start analysis");
   });

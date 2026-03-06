@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadConfig, generateConfig, configExists } from "../src/config/loader";
+import { loadConfig, generateConfig, configExists, detectProject } from "../src/config/loader";
 
 describe("config", () => {
   let tmpDir: string;
@@ -28,7 +28,7 @@ describe("config", () => {
 
   describe("generateConfig", () => {
     it("creates a valid .ghostqa.yml", async () => {
-      const path = await generateConfig(tmpDir);
+      const { path } = await generateConfig(tmpDir);
       expect(path).toContain(".ghostqa.yml");
       const content = await readFile(path, "utf-8");
       expect(content).toContain("app:");
@@ -42,6 +42,30 @@ describe("config", () => {
       expect(config.app.name).toBe("my-app");
       expect(config.ai.provider).toBe("cli");
       expect(config.explorer.enabled).toBe(true);
+    });
+  });
+
+  describe("detectProject", () => {
+    it("detects Next.js from config file", async () => {
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(tmpDir, "package.json"), JSON.stringify({ name: "test-app", scripts: { dev: "next dev", build: "next build" } }));
+      await writeFile(join(tmpDir, "next.config.js"), "module.exports = {}");
+      const project = await detectProject(tmpDir);
+      expect(project.framework).toBe("Next.js");
+      expect(project.name).toBe("test-app");
+    });
+
+    it("detects Vite from dependency", async () => {
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(tmpDir, "package.json"), JSON.stringify({ name: "vite-app", devDependencies: { vite: "^5.0.0" }, scripts: { dev: "vite dev --port 5173", build: "vite build" } }));
+      const project = await detectProject(tmpDir);
+      expect(project.framework).toBe("Vite");
+      expect(project.port).toBe(5173);
+    });
+
+    it("returns null framework when unknown", async () => {
+      const project = await detectProject(tmpDir);
+      expect(project.framework).toBeNull();
     });
   });
 

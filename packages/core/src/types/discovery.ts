@@ -1,5 +1,5 @@
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
-export type DiscoverySource = "explorer" | "console";
+export type DiscoverySource = "explorer" | "console" | "structural";
 
 export interface Discovery {
   id: string;
@@ -12,6 +12,7 @@ export interface Discovery {
   video_timestamp?: number;
   console_errors?: string[];
   steps_to_reproduce?: string[];
+  confidence?: "high" | "medium" | "low";
   timestamp: number;
 }
 

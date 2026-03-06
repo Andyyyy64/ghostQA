@@ -6,9 +6,11 @@
     "build": "pnpm -r run build",
     "dev": "pnpm -r run dev",
     "test": "vitest run",
-    "lint": "pnpm -r run typecheck"
+    "lint": "pnpm -r run typecheck",
+    "benchmark": "tsx scripts/benchmark.ts"
   },
   "devDependencies": {
+    "tsx": "^4.0.0",
     "@types/node": "^25.3.3",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0",

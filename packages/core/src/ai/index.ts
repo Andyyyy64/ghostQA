@@ -6,3 +6,5 @@ export { AnthropicProvider } from "./anthropic-provider";
 export { OpenAIProvider } from "./openai-provider";
 export { CliProvider } from "./cli-provider";
 export { extractJson } from "./parse-json";
+export { estimateCost } from "./cost-estimator";
+export type { CostEstimate } from "./cost-estimator";

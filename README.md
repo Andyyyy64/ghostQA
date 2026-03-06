@@ -9,6 +9,10 @@
   exploring pages and catching bugs <em>before</em> your users do.
 </p>
 
+<p align="center">
+  <img src="demo.gif" alt="ghostQA demo — AI exploring a Todo app and finding bugs" width="720">
+</p>
+
 ---
 
 ## Why ghostQA?
@@ -56,15 +60,22 @@ This runs the full pipeline on both versions and generates:
 
 - **Node.js >= 22**
 - **Git**
+- **Playwright browser binaries**
+  - Run `npx playwright install chromium` if Chromium is not installed yet
 - **AI provider** (pick one):
-  - Set `GEMINI_API_KEY` env var (Google Gemini — default, free tier available)
+  - Set `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`
   - Install [Claude Code](https://github.com/anthropics/claude-code) CLI
   - Install [Codex](https://github.com/openai/codex) CLI
+  - Install [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 
 ### 1. Install
 
 ```bash
 npm install -g ghostqa
+```
+
+```bash
+ghostqa doctor
 ```
 
 ### 2. Initialize
@@ -84,7 +95,9 @@ app:
   url: "http://localhost:3000"
 
 ai:
-  provider: gemini       # or: cli (for Claude Code / Codex)
+  provider: cli          # or: gemini / anthropic / openai
+  cli:
+    command: claude      # or: codex / gemini
   max_budget_usd: 1.0
 ```
 
@@ -119,6 +132,9 @@ ghostqa view
 | `ghostqa validate` | Check your config file for errors |
 | `ghostqa doctor` | Verify dependencies (Node, Playwright, AI provider) |
 | `ghostqa record` | Record a manual browser session |
+| `ghostqa estimate` | Estimate AI cost before running |
+| `ghostqa baseline` | Save, inspect, and clear approved baselines |
+| `ghostqa replay <path>` | Run a generated Playwright replay spec |
 
 ### Run Options
 
@@ -129,31 +145,52 @@ ghostqa run [options]
   --head <ref>           Head git ref (default: HEAD)
   --diff <ref>           Git diff reference (default: HEAD~1)
   --no-explore           Skip AI exploration
+  --baseline             Compare HEAD against the saved baseline
   --budget <usd>         Override max AI budget
   -c, --config <path>    Config file path (default: .ghostqa.yml)
 ```
 
 ## AI Providers
 
-### Gemini API (default)
+### Gemini API
 
 ```yaml
 ai:
   provider: gemini
-  model: gemini-2.0-flash
+  model: gemini-3.1-flash-lite-preview
   api_key_env: GEMINI_API_KEY
+  max_budget_usd: 1.0
+```
+
+### Anthropic API
+
+```yaml
+ai:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  api_key_env: ANTHROPIC_API_KEY
+  max_budget_usd: 1.0
+```
+
+### OpenAI API
+
+```yaml
+ai:
+  provider: openai
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
   max_budget_usd: 1.0
 ```
 
 ### CLI Tools (no API key needed)
 
-Use Claude Code or Codex as the AI backend. Uses your existing CLI subscription.
+Use Claude Code, Codex, or Gemini CLI as the AI backend. Uses your existing CLI subscription.
 
 ```yaml
 ai:
   provider: cli
   cli:
-    command: claude     # or: codex
+    command: claude     # or: codex / gemini
 ```
 
 ### Task-Specific Routing
@@ -169,10 +206,44 @@ ai:
       provider: cli
       cli:
         command: claude
+    exploration:
+      provider: gemini
+      model: gemini-3.1-flash-lite-preview
     ui_control:
       provider: gemini
-      model: gemini-2.0-flash
+      model: gemini-3.1-flash-lite-preview
 ```
+
+## Framework Guides
+
+| Framework | Guide |
+|-----------|-------|
+| Next.js | [docs/guides/nextjs.md](docs/guides/nextjs.md) |
+| Vite (React/Vue/Svelte) | [docs/guides/vite.md](docs/guides/vite.md) |
+| Nuxt | [docs/guides/nuxt.md](docs/guides/nuxt.md) |
+| Astro | [docs/guides/astro.md](docs/guides/astro.md) |
+
+`ghostqa init` auto-detects your framework and generates the right config.
+
+## What It Finds
+
+ghostQA catches issues that are hard to test for manually:
+
+**Form Validation Bugs**
+> "Submit button accepts empty required fields — form submits without validation error"
+> Severity: HIGH | Source: AI Explorer
+
+**Console Errors**
+> "Uncaught TypeError: Cannot read properties of undefined (reading 'map') on /dashboard"
+> Severity: MEDIUM | Source: Console Monitor
+
+**Layout Regressions**
+> "Footer overlaps content on viewport 1280x720 — z-index conflict after CSS change"
+> Severity: MEDIUM | Source: AI Explorer
+
+**Dead Interactions**
+> "Click on 'Save Settings' button produces no response — event handler missing after refactor"
+> Severity: HIGH | Source: AI Explorer
 
 ## Output
 
@@ -229,7 +300,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ghostqa/action@v0
+      - uses: Andyyyy64/ghostQA@v0
         with:
           budget: "2.0"
         env:
@@ -240,6 +311,16 @@ The action automatically:
 - Detects the base/head refs from the PR context
 - Runs the full pipeline
 - Posts a summary comment on the PR with verdict, results, and discovery count
+
+If you want the full `.ghostqa-runs/` directory as a workflow artifact, add an explicit upload step:
+
+```yaml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ghostqa-runs
+          path: .ghostqa-runs
+```
 
 ## Full Config Reference
 
@@ -259,8 +340,8 @@ environment:
   mode: native                     # native or docker
 
 ai:
-  provider: gemini                 # gemini or cli
-  model: gemini-2.0-flash
+  provider: cli                    # gemini | anthropic | openai | cli
+  model: gemini-3.1-flash-lite-preview
   max_budget_usd: 1.0
   api_key_env: GEMINI_API_KEY
   cli:
@@ -268,16 +349,24 @@ ai:
     args: []
   routing:                         # Optional: per-task provider overrides
     diff_analysis: { ... }
+    exploration: { ... }
     ui_control: { ... }
     triage: { ... }
 
 explorer:
   enabled: true
+  mode: web
   max_steps: 50                    # Max exploration steps
   max_duration: 300000             # Max exploration time (ms)
+  emit_replay: false               # Write replay.spec.ts from exploration steps
+  retry_discoveries: 0             # Retry rounds for flaky findings
   viewport:
     width: 1280
     height: 720
+  desktop:
+    display: ":99"
+    app_command: ""
+    window_timeout: 30000
 
 constraints:
   no_payment: false

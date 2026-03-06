@@ -84,7 +84,7 @@ describe("AppRunner", () => {
         expect.objectContaining({
           cwd: "/project",
           shell: true,
-          detached: false,
+          detached: true,
         })
       );
     });
@@ -109,10 +109,11 @@ describe("AppRunner", () => {
   });
 
   describe("stop", () => {
-    it("sends SIGTERM to the process", async () => {
+    it("sends SIGTERM to the process group", async () => {
       const mockProcess = {
         catch: vi.fn().mockReturnThis(),
         kill: vi.fn(),
+        pid: 12345,
         then: vi.fn().mockImplementation((resolve: any) => {
           resolve?.();
           return mockProcess;
@@ -130,11 +131,15 @@ describe("AppRunner", () => {
       mockExeca.mockReturnValue(mockProcess);
       mockFetch.mockResolvedValue({ ok: true });
 
+      const processKillSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+
       const runner = new AppRunner(makeConfig());
       await runner.start("/project");
       await runner.stop();
 
-      expect(mockProcess.kill).toHaveBeenCalledWith("SIGTERM");
+      // Kills entire process group (negative PID)
+      expect(processKillSpy).toHaveBeenCalledWith(-12345, "SIGTERM");
+      processKillSpy.mockRestore();
     });
 
     it("does nothing when no process is running", async () => {

@@ -5,13 +5,14 @@ import { loadConfig, configExists } from "@ghostqa/core";
 export const recordCommand = new Command("record")
   .description("Record a manual browser session for replay")
   .option("-u, --url <url>", "URL to open")
+  .option("-c, --config <path>", "Config file path")
   .action(async (opts) => {
     const cwd = process.cwd();
 
     let url = opts.url;
     if (!url) {
       if (await configExists(cwd)) {
-        const config = await loadConfig(cwd);
+        const config = await loadConfig(cwd, opts.config);
         url = config.app.url;
       } else {
         url = "http://localhost:3000";

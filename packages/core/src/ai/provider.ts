@@ -13,7 +13,7 @@ export interface AiProvider {
   chat(
     system: string,
     messages: ChatMessage[],
-    options?: { maxTokens?: number }
+    options?: { maxTokens?: number; seed?: number }
   ): Promise<ChatResponse>;
 
   chatWithImage(
@@ -21,6 +21,6 @@ export interface AiProvider {
     messages: ChatMessage[],
     imageBase64: string,
     mediaType?: "image/png" | "image/jpeg" | "image/webp",
-    options?: { maxTokens?: number }
+    options?: { maxTokens?: number; seed?: number }
   ): Promise<ChatResponse>;
 }
